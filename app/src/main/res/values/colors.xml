@@ -1,0 +1,10 @@
+<resources>
+    <color name="background_color">#333333</color>
+    <color name="shadow_color">#000000</color>
+    <color name="hour_tick_color">#ffffff</color>
+    <color name="minute_tick_color">#ffffff</color>
+    <color name="text_color">#ffffff</color>
+    <color name="hour_hand_color">#ffffff</color>
+    <color name="minute_hand_color">#ffffff</color>
+    <color name="second_hand_color">#ffffff</color>
+</resources>
