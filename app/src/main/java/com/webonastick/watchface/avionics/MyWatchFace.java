@@ -14,6 +14,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -31,29 +32,10 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Analog watch face with a ticking second hand. In ambient mode, the second hand isn't
- * shown. On devices with low-bit ambient mode, the hands are drawn without anti-aliasing in ambient
- * mode. The watch face is drawn with less contrast in mute mode.
- * <p>
- * Important Note: Because watch face apps do not have a default Activity in
- * their project, you will need to set your Configurations to
- * "Do not launch Activity" for both the Wear and/or Application modules. If you
- * are unsure how to do this, please review the "Run Starter project" section
- * in the Google Watch Face Code Lab:
- * https://codelabs.developers.google.com/codelabs/watchface/index.html#0
- */
 public class MyWatchFace extends CanvasWatchFaceService {
 
-    /*
-     * Updates rate in milliseconds for interactive mode. We update five times a second to advance the
-     * second hand.
-     */
-    private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
+    private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 10;
 
-    /**
-     * Handler message id for updating the time periodically in interactive mode.
-     */
     private static final int MSG_UPDATE_TIME = 0;
 
     @Override
@@ -84,18 +66,41 @@ public class MyWatchFace extends CanvasWatchFaceService {
     private class Engine extends CanvasWatchFaceService.Engine {
         private static final String TAG = "MyWatchFace";
 
-        private static final float HOUR_STROKE_WIDTH   = 5f;
-        private static final float MINUTE_STROKE_WIDTH = 3f;
-        private static final float SECOND_STROKE_WIDTH = 2f;
-        
-        private static final float TICK_OUTER_RADIUS           = 0.97f;
-        private static final float HOUR_TICK_INNER_RADIUS      = 0.89f;
-        private static final float MINUTE_TICK_INNER_RADIUS    = 0.92f;
-        private static final float HOUR_TICK_STROKE_WIDTH      = 3f;
-        private static final float MINUTE_TICK_STROKE_WIDTH    = 3f;
-        private static final float TEXT_OUTER_RADIUS           = 0.84f;
-        private static final float HOUR_TEXT_SIZE_PERCENT      = 12f;
-        private static final float HOUR24_TEXT_SIZE_PERCENT    = 4f;
+        private static final float TICK_OUTER_RADIUS        = 0.97f;
+        private static final float HOUR_TICK_INNER_RADIUS   = 0.89f;
+        private static final float MINUTE_TICK_INNER_RADIUS = 0.92f;
+
+        private static final float HOUR_TICK_STROKE_WIDTH    = 3f;
+        private static final float MINUTE_TICK_STROKE_WIDTH  = 3f;
+        private static final float BATTERY_TICK_STROKE_WIDTH = 3f;
+
+        private static final float TEXT_OUTER_RADIUS = 0.84f;
+
+        private static final float HOUR_TEXT_SIZE_PERCENT          = 12f;
+        private static final float HOUR24_TEXT_SIZE_PERCENT        = 4.5f;
+        private static final float HOUR24_TEXT_SIZE_OFFSET_PERCENT = 2f;
+        private static final float BATTERY_TEXT_SIZE_PERCENT       = 4.5f;
+
+        private static final float HAND_SHADOW_RADIUS   = 0.75f;
+        private static final float HAND_SHADOW_OFFSET_X = 0f;
+        private static final float HAND_SHADOW_OFFSET_Y = -1.5f;
+
+        private static final int TICK_NUMBER_SHADOW = 2;
+
+        private static final float HOUR_HAND_LENGTH    = 0.5f;
+        private static final float MINUTE_HAND_LENGTH  = 0.75f;
+        private static final float SECOND_HAND_LENGTH  = 0.875f;
+        private static final float BATTERY_HAND_LENGTH = 0.875f;
+
+        private static final float HOUR_HAND_WIDTH    = 0.04f;
+        private static final float MINUTE_HAND_WIDTH  = 0.04f;
+        private static final float SECOND_HAND_WIDTH  = 0.015f;
+        private static final float BATTERY_HAND_WIDTH = 0.02f;
+
+        private static final float HOUR_HAND_STROKE_WIDTH    = 4f;
+        private static final float MINUTE_HAND_STROKE_WIDTH  = 4f;
+        private static final float SECOND_HAND_STROKE_WIDTH  = 2f;
+        private static final float BATTERY_HAND_STROKE_WIDTH = 3f;
 
         /* Handler to update the time five times a second in interactive mode. */
         private final Handler mUpdateTimeHandler = new EngineHandler(this);
@@ -109,37 +114,54 @@ public class MyWatchFace extends CanvasWatchFaceService {
         };
         private boolean mRegisteredTimeZoneReceiver = false;
         private boolean mMuteMode;
+        
         private float mWidth;
         private float mHeight;
         private float mRadius;
+        private float mDiameter;
         private float mCenterX;
         private float mCenterY;
+        
+        private float mBatteryCenterX;
+        private float mBatteryCenterY;
+        private float mBatteryRadius;
+
         private float sSecondHandLength;
         private float sSecondHandWidth;
         private float sMinuteHandLength;
         private float sMinuteHandWidth;
         private float sHourHandLength;
         private float sHourHandWidth;
-        private float sHourTickLength;
-        private float sMinuteTickLength;
-        /* Colors for all hands (hour, minute, seconds, ticks) based on photo loaded. */
-        private int mWatchHandColor;
-        private int mWatchHandHighlightColor;
-        private int mWatchHandShadowColor;
-        private Paint mHourPaint;
-        private Paint mMinutePaint;
-        private Paint mSecondPaint;
+        private float sBatteryHandLength;
+        private float sBatteryHandWidth;
+        
+        private Paint mHourHandFillPaint;
+        private Paint mMinuteHandFillPaint;
+        private Paint mSecondHandFillPaint;
+        private Paint mBatteryHandFillPaint;
+        
+        private Paint mHourHandStrokePaint;
+        private Paint mMinuteHandStrokePaint;
+        private Paint mSecondHandStrokePaint;
+        private Paint mBatteryHandStrokePaint;
+
         private Paint mHourTickPaint;
         private Paint mMinuteTickPaint;
+        private Paint mBatteryTickPaint;
+        
         private Paint mBackgroundPaint;
         private Paint mGrayBackgroundPaint;
         private Paint mHourTextPaint;
+
         private Bitmap mBackgroundBitmap;
         private Bitmap mGrayBackgroundBitmap;
+
         private boolean mAmbient;
         private boolean mLowBitAmbient;
         private boolean mBurnInProtection;
+
         private Typeface mTypeface;
+
         private Bitmap mCanvasBitmap = null;
 
         private int mBackgroundColor;
@@ -147,13 +169,24 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private int mTextColor;
         private int mHourTickColor;
         private int mMinuteTickColor;
-        private int mHourHandColor;
-        private int mMinuteHandColor;
-        private int mSecondHandColor;
+        private int mBatteryTickColor;
+
+        private int mHourHandFillColor;
+        private int mMinuteHandFillColor;
+        private int mSecondHandFillColor;
+        private int mBatteryHandFillColor;
+
+        private int mHourHandStrokeColor;
+        private int mMinuteHandStrokeColor;
+        private int mSecondHandStrokeColor;
+        private int mBatteryHandStrokeColor;
 
         private Path mHourHandPath;
         private Path mMinuteHandPath;
         private Path mSecondHandPath;
+        private Path mBatteryHandPath;
+
+        private boolean demoTimeMode = false;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -170,73 +203,101 @@ public class MyWatchFace extends CanvasWatchFaceService {
                     "fonts/routed-gothic.ttf"
             );
 
+            mBackgroundColor = ContextCompat.getColor(getApplicationContext(), R.color.background_color);
+            mShadowColor     = ContextCompat.getColor(getApplicationContext(), R.color.shadow_color);
+            mTextColor       = ContextCompat.getColor(getApplicationContext(), R.color.text_color);
+
+            mHourTickColor    = ContextCompat.getColor(getApplicationContext(), R.color.hour_tick_color);
+            mMinuteTickColor  = ContextCompat.getColor(getApplicationContext(), R.color.minute_tick_color);
+            mBatteryTickColor = ContextCompat.getColor(getApplicationContext(), R.color.battery_tick_color);
+
+            mHourHandFillColor    = ContextCompat.getColor(getApplicationContext(), R.color.hour_hand_fill_color);
+            mMinuteHandFillColor  = ContextCompat.getColor(getApplicationContext(), R.color.minute_hand_fill_color);
+            mSecondHandFillColor  = ContextCompat.getColor(getApplicationContext(), R.color.second_hand_fill_color);
+            mBatteryHandFillColor = ContextCompat.getColor(getApplicationContext(), R.color.battery_hand_fill_color);
+
+            mHourHandStrokeColor    = ContextCompat.getColor(getApplicationContext(), R.color.hour_hand_stroke_color);
+            mMinuteHandStrokeColor  = ContextCompat.getColor(getApplicationContext(), R.color.minute_hand_stroke_color);
+            mSecondHandStrokeColor  = ContextCompat.getColor(getApplicationContext(), R.color.second_hand_stroke_color);
+            mBatteryHandStrokeColor = ContextCompat.getColor(getApplicationContext(), R.color.battery_hand_stroke_color);
+            
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(ContextCompat.getColor(getApplicationContext(), R.color.background_color));
+            mBackgroundPaint.setColor(mBackgroundColor);
 
             mGrayBackgroundPaint = new Paint();
             mGrayBackgroundPaint.setColor(Color.BLACK);
 
-            mBackgroundColor = ContextCompat.getColor(getApplicationContext(), R.color.background_color);
-            mShadowColor     = ContextCompat.getColor(getApplicationContext(), R.color.shadow_color);
-            mTextColor       = ContextCompat.getColor(getApplicationContext(), R.color.text_color);
-            mHourTickColor   = ContextCompat.getColor(getApplicationContext(), R.color.hour_tick_color);
-            mMinuteTickColor = ContextCompat.getColor(getApplicationContext(), R.color.minute_tick_color);
-            mHourHandColor   = ContextCompat.getColor(getApplicationContext(), R.color.hour_hand_color);
-            mMinuteHandColor = ContextCompat.getColor(getApplicationContext(), R.color.minute_hand_color);
-            mSecondHandColor = ContextCompat.getColor(getApplicationContext(), R.color.second_hand_color);
-
-            initializeBackground(holder);
             initializeWatchFace();
         }
 
-        private void initializeBackground(SurfaceHolder holder) {
-//            /* Extracts colors from background image to improve watchface style. */
-//            Palette.from(mBackgroundBitmap).generate(new Palette.PaletteAsyncListener() {
-//                @Override
-//                public void onGenerated(Palette palette) {
-//                    if (palette != null) {
-//                        mWatchHandHighlightColor = palette.getVibrantColor(Color.RED);
-//                        mWatchHandColor = palette.getLightVibrantColor(Color.WHITE);
-//                        mWatchHandShadowColor = palette.getDarkMutedColor(Color.BLACK);
-//                        updateWatchHandStyle();
-//                    }
-//                }
-//            });
-        }
-
-        private static final float SHADOW_RADIUS = 0.75f;
-        private static final float SHADOW_OFFSET_X = 0f;
-        private static final float SHADOW_OFFSET_Y = -0.5f;
-
         private void initializeWatchFace() {
-            /* Set defaults for colors */
-            mWatchHandColor = Color.WHITE;
-            mWatchHandHighlightColor = Color.WHITE;
-            mWatchHandShadowColor = Color.BLACK;
+            mHourHandFillPaint = new Paint();
+            mHourHandFillPaint.setColor(mHourHandFillColor);
+            mHourHandFillPaint.setStrokeWidth(Math.max(0, HOUR_HAND_STROKE_WIDTH   - 1));
+            mHourHandFillPaint.setAntiAlias(true);
+            mHourHandFillPaint.setStrokeCap(Paint.Cap.ROUND);
+            mHourHandFillPaint.setStrokeJoin(Paint.Join.ROUND);
+            mHourHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+            mHourHandFillPaint.setStyle(Paint.Style.FILL_AND_STROKE);
 
-            mHourPaint = new Paint();
-            mHourPaint.setColor(mWatchHandColor);
-            mHourPaint.setStrokeWidth(HOUR_STROKE_WIDTH);
-            mHourPaint.setAntiAlias(true);
-            mHourPaint.setStrokeCap(Paint.Cap.ROUND);
-            mHourPaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
-            mHourPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+            mMinuteHandFillPaint = new Paint();
+            mMinuteHandFillPaint.setColor(mMinuteHandFillColor);
+            mMinuteHandFillPaint.setStrokeWidth(Math.max(0, MINUTE_HAND_STROKE_WIDTH - 1));
+            mMinuteHandFillPaint.setAntiAlias(true);
+            mMinuteHandFillPaint.setStrokeCap(Paint.Cap.ROUND);
+            mMinuteHandFillPaint.setStrokeJoin(Paint.Join.ROUND);
+            mMinuteHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+            mMinuteHandFillPaint.setStyle(Paint.Style.FILL_AND_STROKE);
 
-            mMinutePaint = new Paint();
-            mMinutePaint.setColor(mWatchHandColor);
-            mMinutePaint.setStrokeWidth(MINUTE_STROKE_WIDTH);
-            mMinutePaint.setAntiAlias(true);
-            mMinutePaint.setStrokeCap(Paint.Cap.ROUND);
-            mMinutePaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
-            mMinutePaint.setStyle(Paint.Style.FILL_AND_STROKE);
+            mSecondHandFillPaint = new Paint();
+            mSecondHandFillPaint.setColor(mSecondHandFillColor);
+            mSecondHandFillPaint.setStrokeWidth(Math.max(0, SECOND_HAND_STROKE_WIDTH - 1));
+            mSecondHandFillPaint.setAntiAlias(true);
+            mSecondHandFillPaint.setStrokeCap(Paint.Cap.ROUND);
+            mSecondHandFillPaint.setStrokeJoin(Paint.Join.ROUND);
+            mSecondHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+            mSecondHandFillPaint.setStyle(Paint.Style.FILL_AND_STROKE);
 
-            mSecondPaint = new Paint();
-            mSecondPaint.setColor(mWatchHandHighlightColor);
-            mSecondPaint.setStrokeWidth(SECOND_STROKE_WIDTH);
-            mSecondPaint.setAntiAlias(true);
-            mSecondPaint.setStrokeCap(Paint.Cap.ROUND);
-            mSecondPaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
-            mSecondPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+            mBatteryHandFillPaint = new Paint();
+            mBatteryHandFillPaint.setColor(mBatteryHandFillColor);
+            mBatteryHandFillPaint.setStrokeWidth(Math.max(0, BATTERY_HAND_STROKE_WIDTH - 1));
+            mBatteryHandFillPaint.setAntiAlias(true);
+            mBatteryHandFillPaint.setStrokeCap(Paint.Cap.ROUND);
+            mBatteryHandFillPaint.setStrokeJoin(Paint.Join.ROUND);
+            mBatteryHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+            mBatteryHandFillPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+
+            mHourHandStrokePaint = new Paint();
+            mHourHandStrokePaint.setColor(mHourHandStrokeColor);
+            mHourHandStrokePaint.setStrokeWidth(HOUR_HAND_STROKE_WIDTH);
+            mHourHandStrokePaint.setAntiAlias(true);
+            mHourHandStrokePaint.setStrokeCap(Paint.Cap.ROUND);
+            mHourHandStrokePaint.setStrokeJoin(Paint.Join.ROUND);
+            mHourHandStrokePaint.setStyle(Paint.Style.STROKE);
+
+            mMinuteHandStrokePaint = new Paint();
+            mMinuteHandStrokePaint.setColor(mMinuteHandStrokeColor);
+            mMinuteHandStrokePaint.setStrokeWidth(MINUTE_HAND_STROKE_WIDTH);
+            mMinuteHandStrokePaint.setAntiAlias(true);
+            mMinuteHandStrokePaint.setStrokeCap(Paint.Cap.ROUND);
+            mMinuteHandStrokePaint.setStrokeJoin(Paint.Join.ROUND);
+            mMinuteHandStrokePaint.setStyle(Paint.Style.STROKE);
+
+            mSecondHandStrokePaint = new Paint();
+            mSecondHandStrokePaint.setColor(mSecondHandStrokeColor);
+            mSecondHandStrokePaint.setStrokeWidth(SECOND_HAND_STROKE_WIDTH);
+            mSecondHandStrokePaint.setAntiAlias(true);
+            mSecondHandStrokePaint.setStrokeCap(Paint.Cap.ROUND);
+            mSecondHandStrokePaint.setStrokeJoin(Paint.Join.ROUND);
+            mSecondHandStrokePaint.setStyle(Paint.Style.STROKE);
+            
+            mBatteryHandStrokePaint = new Paint();
+            mBatteryHandStrokePaint.setColor(mBatteryHandStrokeColor);
+            mBatteryHandStrokePaint.setStrokeWidth(BATTERY_HAND_STROKE_WIDTH);
+            mBatteryHandStrokePaint.setAntiAlias(true);
+            mBatteryHandStrokePaint.setStrokeCap(Paint.Cap.ROUND);
+            mBatteryHandStrokePaint.setStrokeJoin(Paint.Join.ROUND);
+            mBatteryHandStrokePaint.setStyle(Paint.Style.STROKE);
 
             mHourTickPaint = new Paint();
             mHourTickPaint.setColor(mHourTickColor);
@@ -244,7 +305,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mHourTickPaint.setAntiAlias(true);
             mHourTickPaint.setStyle(Paint.Style.STROKE);
             mHourTickPaint.setStrokeCap(Paint.Cap.BUTT);
-            mHourTickPaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
 
             mMinuteTickPaint = new Paint();
             mMinuteTickPaint.setColor(mMinuteTickColor);
@@ -252,14 +312,19 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mMinuteTickPaint.setAntiAlias(true);
             mMinuteTickPaint.setStyle(Paint.Style.STROKE);
             mMinuteTickPaint.setStrokeCap(Paint.Cap.BUTT);
-            mMinuteTickPaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
+
+            mBatteryTickPaint = new Paint();
+            mBatteryTickPaint.setColor(mBatteryTickColor);
+            mBatteryTickPaint.setStrokeWidth(BATTERY_TICK_STROKE_WIDTH);
+            mBatteryTickPaint.setAntiAlias(true);
+            mBatteryTickPaint.setStyle(Paint.Style.STROKE);
+            mBatteryTickPaint.setStrokeCap(Paint.Cap.BUTT);
 
             mHourTextPaint = new Paint();
             mHourTextPaint.setColor(mTextColor);
             mHourTextPaint.setAntiAlias(true);
             mHourTextPaint.setTypeface(mTypeface);
             mHourTextPaint.setTextAlign(Paint.Align.CENTER);
-            mHourTextPaint.setShadowLayer(SHADOW_RADIUS, SHADOW_OFFSET_X, SHADOW_OFFSET_Y, mShadowColor);
         }
 
         @Override
@@ -294,29 +359,48 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         private void updateWatchHandStyle() {
             if (mAmbient) {
-                mHourPaint.setColor(Color.WHITE);
-                mMinutePaint.setColor(Color.WHITE);
-                mSecondPaint.setColor(Color.WHITE);
-
-                mHourPaint.setAntiAlias(false);
-                mMinutePaint.setAntiAlias(false);
-                mSecondPaint.setAntiAlias(false);
-
-                mHourPaint.clearShadowLayer();
-                mMinutePaint.clearShadowLayer();
-                mSecondPaint.clearShadowLayer();
+                mHourHandFillPaint.setColor(Color.BLACK);
+                mMinuteHandFillPaint.setColor(Color.BLACK);
+                mSecondHandFillPaint.setColor(Color.BLACK);
+                mBatteryHandFillPaint.setColor(Color.BLACK);
+                mHourHandStrokePaint.setColor(Color.WHITE);
+                mMinuteHandStrokePaint.setColor(Color.WHITE);
+                mSecondHandStrokePaint.setColor(Color.WHITE);
+                mBatteryHandStrokePaint.setColor(Color.WHITE);
+                mHourHandFillPaint.clearShadowLayer();
+                mMinuteHandFillPaint.clearShadowLayer();
+                mSecondHandFillPaint.clearShadowLayer();
+                mBatteryHandFillPaint.clearShadowLayer();
             } else {
-                mHourPaint.setColor(mWatchHandColor);
-                mMinutePaint.setColor(mWatchHandColor);
-                mSecondPaint.setColor(mWatchHandHighlightColor);
-
-                mHourPaint.setAntiAlias(true);
-                mMinutePaint.setAntiAlias(true);
-                mSecondPaint.setAntiAlias(true);
-
-                mHourPaint.setShadowLayer(SHADOW_RADIUS, 0, 0, mWatchHandShadowColor);
-                mMinutePaint.setShadowLayer(SHADOW_RADIUS, 0, 0, mWatchHandShadowColor);
-                mSecondPaint.setShadowLayer(SHADOW_RADIUS, 0, 0, mWatchHandShadowColor);
+                mHourHandFillPaint.setColor(mHourHandFillColor);
+                mMinuteHandFillPaint.setColor(mMinuteHandFillColor);
+                mSecondHandFillPaint.setColor(mSecondHandFillColor);
+                mBatteryHandFillPaint.setColor(mBatteryHandFillColor);
+                mHourHandStrokePaint.setColor(mHourHandStrokeColor);
+                mMinuteHandStrokePaint.setColor(mMinuteHandStrokeColor);
+                mSecondHandStrokePaint.setColor(mSecondHandStrokeColor);
+                mBatteryHandStrokePaint.setColor(mBatteryHandStrokeColor);
+                mHourHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+                mMinuteHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+                mSecondHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+                mBatteryHandFillPaint.setShadowLayer(HAND_SHADOW_RADIUS, HAND_SHADOW_OFFSET_X, HAND_SHADOW_OFFSET_Y, mShadowColor);
+            }
+            if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
+                mHourHandFillPaint.setAntiAlias(false);
+                mMinuteHandFillPaint.setAntiAlias(false);
+                mSecondHandFillPaint.setAntiAlias(false);
+                mBatteryHandFillPaint.setAntiAlias(false);
+                mHourTickPaint.setAntiAlias(false);
+                mMinuteTickPaint.setAntiAlias(false);
+                mBatteryTickPaint.setAntiAlias(false);
+            } else {
+                mHourHandFillPaint.setAntiAlias(true);
+                mMinuteHandFillPaint.setAntiAlias(true);
+                mSecondHandFillPaint.setAntiAlias(true);
+                mBatteryHandFillPaint.setAntiAlias(true);
+                mHourTickPaint.setAntiAlias(true);
+                mMinuteTickPaint.setAntiAlias(true);
+                mBatteryTickPaint.setAntiAlias(true);
             }
         }
 
@@ -328,9 +412,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
             /* Dim display in mute mode. */
             if (mMuteMode != inMuteMode) {
                 mMuteMode = inMuteMode;
-                mHourPaint.setAlpha(inMuteMode ? 100 : 255);
-                mMinutePaint.setAlpha(inMuteMode ? 100 : 255);
-                mSecondPaint.setAlpha(inMuteMode ? 80 : 255);
+                mHourHandFillPaint.setAlpha(inMuteMode ? 100 : 255);
+                mMinuteHandFillPaint.setAlpha(inMuteMode ? 100 : 255);
+                mSecondHandFillPaint.setAlpha(inMuteMode ? 80 : 255);
+                mBatteryHandFillPaint.setAlpha(inMuteMode ? 100 : 255);
                 invalidate();
             }
         }
@@ -346,28 +431,28 @@ public class MyWatchFace extends CanvasWatchFaceService {
              */
             mWidth = width;
             mHeight = height;
-            mRadius = Math.min(width / 2f, height / 2f);
+            mRadius   = Math.min(width / 2f, height / 2f);
+            mDiameter = Math.min(width, height);
             mCenterX = width / 2f;
             mCenterY = height / 2f;
 
-            /*
-             * Calculate lengths of different hands based on watch screen size.
-             */
-            sSecondHandLength = (float) (mRadius * 0.875);
-            sMinuteHandLength = (float) (mRadius * 0.75);
-            sHourHandLength   = (float) (mRadius * 0.5);
+            mBatteryCenterX    = width / 2f;
+            mBatteryCenterY    = height * 0.44f;
+            mBatteryRadius     = height * 0.16f;
 
-            sHourHandWidth    = (float) (mRadius * 0.07);
-            sMinuteHandWidth  = (float) (mRadius * 0.05);
-            sSecondHandWidth  = (float) (mRadius * 0.03);
+            sHourHandLength    = (float) (mRadius * HOUR_HAND_LENGTH);
+            sMinuteHandLength  = (float) (mRadius * MINUTE_HAND_LENGTH);
+            sSecondHandLength  = (float) (mRadius * SECOND_HAND_LENGTH);
+            sBatteryHandLength = (float) (mBatteryRadius * BATTERY_HAND_LENGTH);
 
-            sHourTickLength   = (float) (mRadius * 0.1);
-            sMinuteTickLength = (float) (mRadius * 0.06);
+            sHourHandWidth    = (float) (mDiameter * HOUR_HAND_WIDTH);
+            sMinuteHandWidth  = (float) (mDiameter * MINUTE_HAND_WIDTH);
+            sSecondHandWidth  = (float) (mDiameter * SECOND_HAND_WIDTH);
+            sBatteryHandWidth = (float) (mDiameter * BATTERY_HAND_WIDTH);
 
             mCanvasBitmap = null;
             mBackgroundBitmap = null;
             mGrayBackgroundBitmap = null;
-
 
             mHourHandPath = new Path();
             mHourHandPath.moveTo(mCenterX - sHourHandWidth / 3, mCenterY);
@@ -376,7 +461,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mHourHandPath.lineTo(mCenterX + sHourHandWidth / 2, mCenterY - sHourHandLength * 0.75f);
             mHourHandPath.lineTo(mCenterX + sHourHandWidth / 3, mCenterY);
             mHourHandPath.lineTo(mCenterX - sHourHandWidth / 3, mCenterY);
-            mHourHandPath.addCircle(mCenterX, mCenterY, sHourHandWidth / 1.5f, Path.Direction.CW);
+            
+            Path hourCirclePath = new Path();
+            hourCirclePath.addCircle(mCenterX, mCenterY, sHourHandWidth / 1.5f, Path.Direction.CW);
+            
+            mHourHandPath.op(hourCirclePath, Path.Op.UNION);
             
             mMinuteHandPath = new Path();
             mMinuteHandPath.moveTo(mCenterX - sMinuteHandWidth / 3, mCenterY);
@@ -385,7 +474,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mMinuteHandPath.lineTo(mCenterX + sMinuteHandWidth / 2, mCenterY - sMinuteHandLength * 0.75f);
             mMinuteHandPath.lineTo(mCenterX + sMinuteHandWidth / 3, mCenterY);
             mMinuteHandPath.lineTo(mCenterX - sMinuteHandWidth / 3, mCenterY);
-            mMinuteHandPath.addCircle(mCenterX, mCenterY, sMinuteHandWidth / 1.5f, Path.Direction.CW);
+
+            Path minuteCirclePath = new Path();
+            minuteCirclePath.addCircle(mCenterX, mCenterY, sMinuteHandWidth / 1.5f, Path.Direction.CW);
+
+            mMinuteHandPath.op(minuteCirclePath, Path.Op.UNION);
 
             mSecondHandPath = new Path();
             mSecondHandPath.moveTo(mCenterX - sSecondHandWidth / 3, mCenterY);
@@ -394,29 +487,140 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mSecondHandPath.lineTo(mCenterX + sSecondHandWidth / 2, mCenterY - sSecondHandLength * 0.75f);
             mSecondHandPath.lineTo(mCenterX + sSecondHandWidth / 3, mCenterY);
             mSecondHandPath.lineTo(mCenterX - sSecondHandWidth / 3, mCenterY);
-            mSecondHandPath.addCircle(mCenterX, mCenterY, sSecondHandWidth / 1.5f, Path.Direction.CW);
+
+            Path secondCirclePath = new Path();
+            secondCirclePath.addCircle(mCenterX, mCenterY, sSecondHandWidth / 1.5f, Path.Direction.CW);
+
+            mSecondHandPath.op(secondCirclePath, Path.Op.UNION);
+
+            mBatteryHandPath = new Path();
+            mBatteryHandPath.moveTo(mBatteryCenterX - sBatteryHandWidth / 3, mBatteryCenterY);
+            mBatteryHandPath.lineTo(mBatteryCenterX - sBatteryHandWidth / 2, mBatteryCenterY - sBatteryHandLength * 0.75f);
+            mBatteryHandPath.lineTo(mBatteryCenterX, mBatteryCenterY - sBatteryHandLength);
+            mBatteryHandPath.lineTo(mBatteryCenterX + sBatteryHandWidth / 2, mBatteryCenterY - sBatteryHandLength * 0.75f);
+            mBatteryHandPath.lineTo(mBatteryCenterX + sBatteryHandWidth / 3, mBatteryCenterY);
+            mBatteryHandPath.lineTo(mBatteryCenterX - sBatteryHandWidth / 3, mBatteryCenterY);
+
+            Path batteryCirclePath = new Path();
+            batteryCirclePath.addCircle(mBatteryCenterX, mBatteryCenterY, sBatteryHandWidth / 1.5f, Path.Direction.CW);
+
+            mBatteryHandPath.op(batteryCirclePath, Path.Op.UNION);
         }
 
-        private void drawTicks(Canvas canvas, int modulo) {
+        private void drawTicks(Canvas canvas, boolean shadow) {
+            if (shadow) {
+                for (int dy = 1; dy <= TICK_NUMBER_SHADOW; dy += 1) {
+                    drawTicks(canvas, true, dy);
+                }
+            } else {
+                drawTicks(canvas, false, 0);
+            }
+        }
+
+        private void drawTicks(Canvas canvas, boolean shadow, int dy) {
+            drawClockTicks(canvas, shadow, dy);
+            drawBatteryTicks(canvas, shadow, dy);
+        }
+        
+        private void drawClockTicks(Canvas canvas, boolean shadow, int dy) {
+            if (shadow) {
+                mHourTickPaint.setColor(Color.BLACK);
+                mMinuteTickPaint.setColor(Color.BLACK);
+            } else {
+                mHourTickPaint.setColor(mHourTickColor);
+                mMinuteTickPaint.setColor(mMinuteTickColor);
+            }
+
+            float centerX = mCenterX;
+            float centerY = mCenterY + (shadow ? (dy * 1f) : 0f);
+
             canvas.save();
-            for (int tick = 0; tick < 60; tick += modulo) {
+            for (int tick = 0; tick < 60; tick += 1) {
                 boolean isHourTick = tick % 5 == 0;
                 if (isHourTick) {
                     canvas.drawLine(
-                            mCenterX, mCenterY - mRadius * TICK_OUTER_RADIUS,
-                            mCenterX, mCenterY - mRadius * HOUR_TICK_INNER_RADIUS,
+                            centerX, centerY - mRadius * TICK_OUTER_RADIUS,
+                            centerX, centerY - mRadius * HOUR_TICK_INNER_RADIUS,
                             mHourTickPaint
                     );
                 } else {
                     canvas.drawLine(
-                            mCenterX, mCenterY - mRadius * TICK_OUTER_RADIUS,
-                            mCenterX, mCenterY - mRadius * MINUTE_TICK_INNER_RADIUS,
+                            centerX, centerY - mRadius * TICK_OUTER_RADIUS,
+                            centerX, centerY - mRadius * MINUTE_TICK_INNER_RADIUS,
                             mMinuteTickPaint
                     );
                 }
-                canvas.rotate(6f * modulo, mCenterX, mCenterY);
+                canvas.rotate(6f, centerX, centerY);
             }
             canvas.restore();
+        }
+        
+        private void drawBatteryTicks(Canvas canvas, boolean shadow, int dy) {
+            if (shadow) {
+                mBatteryTickPaint.setColor(mShadowColor);
+            } else {
+                mBatteryTickPaint.setColor(mBatteryTickColor);
+            }
+
+            float centerX = mBatteryCenterX;
+            float centerY = mBatteryCenterY + (shadow ? (dy * 1f) : 0f);
+
+            Paint textPaint = new Paint();
+            textPaint.setAntiAlias(true);
+            textPaint.setTypeface(mTypeface);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            if (mAmbient) {
+                textPaint.setColor(Color.WHITE);
+            } else {
+                if (shadow) {
+                    textPaint.setColor(mShadowColor);
+                } else {
+                    textPaint.setColor(mBatteryTickColor);
+                }
+            }
+            textPaint.setTextSize(mDiameter * BATTERY_TEXT_SIZE_PERCENT / 100);
+
+            canvas.save();
+            canvas.rotate(-90f, centerX, centerY);
+            float rotation = -90f;
+            for (int tick = 0; tick <= 100; tick += 10) {
+
+                if (tick == 0 || tick == 50 || tick == 100) {
+                    float tickCenterX = centerX;
+                    float tickCenterY = centerY - mBatteryRadius * ((1f + HOUR_TICK_INNER_RADIUS) / 2);
+                    Rect textBounds = new Rect();
+                    String tickString = Integer.toString(tick);
+                    textPaint.getTextBounds(tickString, 0, tickString.length(), textBounds);
+                    canvas.rotate(
+                            -rotation, tickCenterX, tickCenterY
+                    );
+                    canvas.drawText(
+                            tickString,
+                            tickCenterX,
+                            tickCenterY + textBounds.height() / 2,
+                            textPaint
+                    );
+                    canvas.rotate(
+                            rotation, tickCenterX, tickCenterY
+                    );
+                } else {
+                    canvas.drawLine(
+                            centerX, centerY - mBatteryRadius,
+                            centerX, centerY - mBatteryRadius * HOUR_TICK_INNER_RADIUS,
+                            mBatteryTickPaint
+                    );
+                }
+
+                canvas.rotate(180f / 10, centerX, centerY);
+                rotation += 180f / 10;
+            }
+            canvas.restore();
+
+            canvas.drawText(
+                    "BATTERY",
+                    mBatteryCenterX,
+                    mBatteryCenterY - mBatteryRadius / 3 + 0.5f * mDiameter * BATTERY_TEXT_SIZE_PERCENT / 100,
+                    textPaint);
         }
 
         private void initBackgroundBitmap(Canvas canvas) {
@@ -430,39 +634,66 @@ public class MyWatchFace extends CanvasWatchFaceService {
             Canvas backgroundCanvas = new Canvas();
             mBackgroundBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             backgroundCanvas.setBitmap(mBackgroundBitmap);
-            backgroundCanvas.drawRect(0, 0, width, height, mBackgroundPaint);
+            backgroundCanvas.drawColor(mBackgroundColor);
 
-            drawTicks(backgroundCanvas, 1);
+            drawTicks(backgroundCanvas, true);
+            drawTicks(backgroundCanvas, false);
+            drawHourNumbers(backgroundCanvas, true);
+            drawHourNumbers(backgroundCanvas, false);
+
+            mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            canvas.setBitmap(mCanvasBitmap);
+        }
+
+        private void drawHourNumbers(Canvas canvas, boolean shadow) {
+            if (shadow) {
+                for (int dy = 1; dy <= TICK_NUMBER_SHADOW; dy += 1) {
+                    drawHourNumbers(canvas, true, dy);
+                }
+            } else {
+                drawHourNumbers(canvas, false, 0);
+            }
+        }
+
+        private void drawHourNumbers(Canvas canvas, boolean shadow, int dy) {
+            if (shadow) {
+                mHourTextPaint.setColor(mShadowColor);
+            } else {
+                mHourTextPaint.setColor(mTextColor);
+            }
+
+            float centerX = mCenterX;
+            float centerY = mCenterY + (shadow ? (dy * 1f) : 0f);
 
             for (int hour = 1; hour <= 12; hour += 1) {
-                mHourTextPaint.setTextSize(mRadius * 2 / 100 * HOUR_TEXT_SIZE_PERCENT);
+                mHourTextPaint.setTextSize(mDiameter * HOUR_TEXT_SIZE_PERCENT / 100);
                 int deg = 30 * (hour % 12);
                 String sHour = Integer.toString(hour);
                 Rect textBounds = new Rect();
                 mHourTextPaint.getTextBounds(sHour, 0, sHour.length(), textBounds);
-                float x = mCenterX + (float)Math.sin(Math.PI * deg / 180f) * TEXT_OUTER_RADIUS * mRadius;
-                float y = mCenterY - (float)Math.cos(Math.PI * deg / 180f) * TEXT_OUTER_RADIUS * mRadius;
+                float x = centerX + (float)Math.sin(Math.PI * deg / 180f) * TEXT_OUTER_RADIUS * mRadius;
+                float y = centerY - (float)Math.cos(Math.PI * deg / 180f) * TEXT_OUTER_RADIUS * mRadius;
                 x = x - (float)Math.sin(Math.PI * deg / 180f) * textBounds.width() / 2;
                 y = y + (float)Math.cos(Math.PI * deg / 180f) * textBounds.height() / 2;
-                backgroundCanvas.drawText(sHour, x, y + textBounds.height() / 2f, mHourTextPaint);
+                canvas.drawText(sHour, x, y + textBounds.height() / 2f, mHourTextPaint);
 
                 if (hour % 3 == 0) {
-                    mHourTextPaint.setTextSize(mRadius * 2 / 100 * HOUR24_TEXT_SIZE_PERCENT);
+                    mHourTextPaint.setTextSize(mDiameter * HOUR24_TEXT_SIZE_PERCENT / 100);
                     sHour = Integer.toString(hour + 12);
                     Rect textBounds24 = new Rect();
                     mHourTextPaint.getTextBounds(sHour, 0, sHour.length(), textBounds24);
-                    x = x - (float)Math.sin(Math.PI * deg / 180f) * textBounds.width() / 2;
-                    y = y + (float)Math.cos(Math.PI * deg / 180f) * textBounds.height() / 2;
-                    x = x - (float)Math.sin(Math.PI * deg / 180f) * mRadius * 0.02f;
-                    y = y + (float)Math.cos(Math.PI * deg / 180f) * mRadius * 0.02f;
-                    x = x - (float)Math.sin(Math.PI * deg / 180f) * textBounds24.width() / 2;
-                    y = y + (float)Math.cos(Math.PI * deg / 180f) * textBounds24.height() / 2;
-                    backgroundCanvas.drawText(sHour, x, y + textBounds24.height() / 2f, mHourTextPaint);
+                    if (hour > 9 || hour < 3) {
+                        y = y + textBounds.height() / 2f + mDiameter * HOUR24_TEXT_SIZE_OFFSET_PERCENT / 100 + textBounds24.height() / 2f;
+                    } else if (hour == 9 || hour == 3) {
+                        x = x - (float)Math.sin(Math.PI * deg / 180f) * textBounds.width() / 2
+                                - (float)Math.sin(Math.PI * deg / 180f) * mDiameter * HOUR24_TEXT_SIZE_OFFSET_PERCENT / 100
+                                - (float)Math.sin(Math.PI * deg / 180f) * textBounds24.width() / 2;
+                    } else {
+                        y = y - textBounds.height() / 2f - mDiameter * HOUR24_TEXT_SIZE_OFFSET_PERCENT / 100 - textBounds24.height() / 2f;
+                    }
+                    canvas.drawText(sHour, x, y + textBounds24.height() / 2f, mHourTextPaint);
                 }
             }
-
-            mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            canvas.setBitmap(mCanvasBitmap);
         }
 
         private void initGrayBackgroundBitmap(Canvas canvas) {
@@ -476,9 +707,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
             Canvas backgroundCanvas = new Canvas();
             mGrayBackgroundBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             backgroundCanvas.setBitmap(mGrayBackgroundBitmap);
-            backgroundCanvas.drawRect(0, 0, width, height, mBackgroundPaint);
+            backgroundCanvas.drawColor(Color.BLACK);
 
-            drawTicks(backgroundCanvas, 5);
+            drawTicks(backgroundCanvas, false);
+            drawHourNumbers(backgroundCanvas, false);
 
             mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             backgroundCanvas.setBitmap(mCanvasBitmap);
@@ -487,10 +719,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             canvas.setBitmap(mCanvasBitmap);
         }
 
-        /**
-         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
-         * used for implementing specific logic to handle the gesture.
-         */
         @Override
         public void onTapCommand(int tapType, int x, int y, long eventTime) {
 //            switch (tapType) {
@@ -516,12 +744,14 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mCalendar.setTimeInMillis(now);
 
             drawBackground(canvas, bounds);
+            drawBatteryHand(canvas, bounds);
             drawWatchFace(canvas, bounds);
         }
 
         private void drawBackground(Canvas canvas, Rect bounds) {
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
-                canvas.drawColor(Color.BLACK);
+                initGrayBackgroundBitmap(canvas);
+                canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
             } else if (mAmbient) {
                 initGrayBackgroundBitmap(canvas);
                 canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
@@ -531,42 +761,71 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        private void drawWatchFace(Canvas canvas, Rect bounds) {
-            /*
-             * These calculations reflect the rotation in degrees per unit of time, e.g.,
-             * 360 / 60 = 6 and 360 / 12 = 30.
-             */
-            final float seconds = (float)mCalendar.get(Calendar.SECOND) + (float)mCalendar.get(Calendar.MILLISECOND) / 1000f; /* 0 to 60 */
-            final float minutes = (float)mCalendar.get(Calendar.MINUTE) + (float)seconds / 60f; /* 0 to 60 */
-            final float hours   = (float)mCalendar.get(Calendar.HOUR)   + (float)minutes / 60f; /* 0 to 12 */
+        private void drawBatteryHand(Canvas canvas, Rect bounds) {
+            float batteryPercentage;
 
-            Log.d(TAG, "> " + seconds + " " + minutes + " " + hours);
+            if (demoTimeMode) {
+                batteryPercentage = 69f;
+            } else {
+                IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                Intent batteryStatus = MyWatchFace.this.registerReceiver(null, ifilter);
+
+                int batteryLevel = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int batteryScale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                batteryPercentage = batteryLevel * 100f / batteryScale;
+            }
+
+            float batteryRotation = -90f + 180f * batteryPercentage / 100f;
+            
+            canvas.save();
+            canvas.rotate(batteryRotation, mBatteryCenterX, mBatteryCenterY);
+            canvas.drawPath(mBatteryHandPath, mBatteryHandFillPaint);
+            canvas.drawPath(mBatteryHandPath, mBatteryHandStrokePaint);
+            canvas.restore();
+        }
+
+        private void drawWatchFace(Canvas canvas, Rect bounds) {
+            int h;
+            int m;
+            int s;
+            int ms;
+
+            if (demoTimeMode) {
+                h = 10;
+                m = 10;
+                s = 32;
+                ms = 500;
+            } else {
+                h  = mCalendar.get(Calendar.HOUR);
+                m  = mCalendar.get(Calendar.MINUTE);
+                s  = mCalendar.get(Calendar.SECOND);
+                ms = mCalendar.get(Calendar.MILLISECOND);
+            }
+
+            final float seconds = (float)s + (float) ms / 1000f; /* 0 to 60 */
+            final float minutes = (float)m + (float) seconds / 60f; /* 0 to 60 */
+            final float hours   = (float)h + (float) minutes / 60f; /* 0 to 12 */
 
             final float secondsRotation = seconds * 6f;
             final float minutesRotation = minutes * 6f;
             final float hoursRotation   = hours * 30f;
 
-            /*
-             * Save the canvas state before we can begin to rotate it.
-             */
             canvas.save();
 
             canvas.rotate(hoursRotation, mCenterX, mCenterY);
-            canvas.drawPath(mHourHandPath, mHourPaint);
+            canvas.drawPath(mHourHandPath, mHourHandFillPaint);
+            canvas.drawPath(mHourHandPath, mHourHandStrokePaint);
 
             canvas.rotate(minutesRotation - hoursRotation, mCenterX, mCenterY);
-            canvas.drawPath(mMinuteHandPath, mMinutePaint);
+            canvas.drawPath(mMinuteHandPath, mMinuteHandFillPaint);
+            canvas.drawPath(mMinuteHandPath, mMinuteHandStrokePaint);
 
-            /*
-             * Ensure the "seconds" hand is drawn only when we are in interactive mode.
-             * Otherwise, we only update the watch face once a minute.
-             */
             if (!mAmbient) {
                 canvas.rotate(secondsRotation - minutesRotation, mCenterX, mCenterY);
-                canvas.drawPath(mSecondHandPath, mSecondPaint);
+                canvas.drawPath(mSecondHandPath, mSecondHandFillPaint);
+                canvas.drawPath(mSecondHandPath, mSecondHandStrokePaint);
             }
 
-            /* Restore the canvas' original orientation. */
             canvas.restore();
         }
 
@@ -576,14 +835,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
             if (visible) {
                 registerReceiver();
-                /* Update time zone in case it changed while we weren't visible. */
                 mCalendar.setTimeZone(TimeZone.getDefault());
                 invalidate();
             } else {
                 unregisterReceiver();
             }
 
-            /* Check and trigger whether or not timer should be running (only in active mode). */
             updateTimer();
         }
 
@@ -604,9 +861,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             MyWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
         }
 
-        /**
-         * Starts/stops the {@link #mUpdateTimeHandler} timer based on the state of the watch face.
-         */
         private void updateTimer() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
             if (shouldTimerBeRunning()) {
@@ -614,17 +868,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        /**
-         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
-         * should only run in active mode.
-         */
         private boolean shouldTimerBeRunning() {
             return isVisible() && !mAmbient;
         }
 
-        /**
-         * Handle updating the time periodically in interactive mode.
-         */
         private void handleUpdateTimeMessage() {
             invalidate();
             if (shouldTimerBeRunning()) {
