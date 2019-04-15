@@ -738,21 +738,24 @@ public class MyWatchFace extends CanvasWatchFaceService {
             if (demoTimeMode) {
                 batteryPercentage = 69f;
             } else {
-                IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                Intent batteryStatus = MyWatchFace.this.registerReceiver(null, ifilter);
-
-                int batteryLevel = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-                int batteryScale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-                batteryPercentage = batteryLevel * 100f / batteryScale;
+                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                Intent batteryStatus = MyWatchFace.this.registerReceiver(null, intentFilter);
+                try {
+                    int batteryLevel = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                    int batteryScale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                    batteryPercentage = batteryLevel * 100f / batteryScale;
+                } catch (NullPointerException e) {
+                    batteryPercentage = -1f;
+                }
             }
-
-            float batteryRotation = -90f + 180f * batteryPercentage / 100f;
-            
-            canvas.save();
-            canvas.rotate(batteryRotation, mBatteryCenterX, mBatteryCenterY);
-            canvas.drawPath(mBatteryHandPath, mBatteryHandFillPaint);
-            canvas.drawPath(mBatteryHandPath, mBatteryHandStrokePaint);
-            canvas.restore();
+            if (batteryPercentage >= 0f && batteryPercentage <= 100f) {
+                float batteryRotation = -90f + 180f * batteryPercentage / 100f;
+                canvas.save();
+                canvas.rotate(batteryRotation, mBatteryCenterX, mBatteryCenterY);
+                canvas.drawPath(mBatteryHandPath, mBatteryHandFillPaint);
+                canvas.drawPath(mBatteryHandPath, mBatteryHandStrokePaint);
+                canvas.restore();
+            }
         }
 
         private void drawWatchFace(Canvas canvas, Rect bounds) {
