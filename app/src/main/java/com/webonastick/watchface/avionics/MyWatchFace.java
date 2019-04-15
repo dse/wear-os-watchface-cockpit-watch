@@ -26,6 +26,7 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("ALL")
 public class MyWatchFace extends CanvasWatchFaceService {
 
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
@@ -40,7 +41,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
     private static class EngineHandler extends Handler {
         private final WeakReference<MyWatchFace.Engine> mWeakReference;
 
-        public EngineHandler(MyWatchFace.Engine reference) {
+        EngineHandler(MyWatchFace.Engine reference) {
             mWeakReference = new WeakReference<>(reference);
         }
 
@@ -57,6 +58,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
     }
 
+    @SuppressWarnings("unused")
     private class Engine extends CanvasWatchFaceService.Engine {
         private static final String TAG = "MyWatchFace";
 
@@ -178,7 +180,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private Path mSecondHandPath;
         private Path mBatteryHandPath;
 
-        private boolean demoTimeMode = false;
+        private final boolean demoTimeMode = false;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -432,15 +434,15 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mBatteryCenterY    = height * 0.44f;
             mBatteryRadius     = height * 0.16f;
 
-            mHourHandLength = (float) (mRadius * HOUR_HAND_LENGTH);
-            mMinuteHandLength = (float) (mRadius * MINUTE_HAND_LENGTH);
-            mSecondHandLength = (float) (mRadius * SECOND_HAND_LENGTH);
-            mBatteryHandLength = (float) (mBatteryRadius * BATTERY_HAND_LENGTH);
+            mHourHandLength = mRadius * HOUR_HAND_LENGTH;
+            mMinuteHandLength = mRadius * MINUTE_HAND_LENGTH;
+            mSecondHandLength = mRadius * SECOND_HAND_LENGTH;
+            mBatteryHandLength = mBatteryRadius * BATTERY_HAND_LENGTH;
 
-            mHourHandWidth = (float) (mDiameter * HOUR_HAND_WIDTH);
-            mMinuteHandWidth = (float) (mDiameter * MINUTE_HAND_WIDTH);
-            mSecondHandWidth = (float) (mDiameter * SECOND_HAND_WIDTH);
-            mBatteryHandWidth = (float) (mDiameter * BATTERY_HAND_WIDTH);
+            mHourHandWidth = mDiameter * HOUR_HAND_WIDTH;
+            mMinuteHandWidth = mDiameter * MINUTE_HAND_WIDTH;
+            mSecondHandWidth = mDiameter * SECOND_HAND_WIDTH;
+            mBatteryHandWidth = mDiameter * BATTERY_HAND_WIDTH;
 
             mBackgroundBitmap = null;
             mGrayBackgroundBitmap = null;
@@ -583,22 +585,21 @@ public class MyWatchFace extends CanvasWatchFaceService {
             for (int tick = 0; tick <= 100; tick += 10) {
 
                 if (tick == 0 || tick == 50 || tick == 100) {
-                    float tickCenterX = centerX;
                     float tickCenterY = centerY - mBatteryRadius * ((1f + HOUR_TICK_INNER_RADIUS) / 2);
                     Rect textBounds = new Rect();
                     String tickString = Integer.toString(tick);
                     textPaint.getTextBounds(tickString, 0, tickString.length(), textBounds);
                     canvas.rotate(
-                            -rotation, tickCenterX, tickCenterY
+                            -rotation, centerX, tickCenterY
                     );
                     canvas.drawText(
                             tickString,
-                            tickCenterX,
-                            tickCenterY + textBounds.height() / 2,
+                            centerX,
+                            tickCenterY + textBounds.height() / 2f,
                             textPaint
                     );
                     canvas.rotate(
-                            rotation, tickCenterX, tickCenterY
+                            rotation, centerX, tickCenterY
                     );
                 } else {
                     canvas.drawLine(
@@ -717,12 +718,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
-            drawBackground(canvas, bounds);
-            drawBatteryHand(canvas, bounds);
-            drawWatchFace(canvas, bounds);
+            drawBackground(canvas);
+            drawBatteryHand(canvas);
+            drawWatchFace(canvas);
         }
 
-        private void drawBackground(Canvas canvas, Rect bounds) {
+        private void drawBackground(Canvas canvas) {
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
             } else if (mAmbient) {
@@ -732,19 +733,20 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        private void drawBatteryHand(Canvas canvas, Rect bounds) {
+        private void drawBatteryHand(Canvas canvas) {
             float batteryPercentage;
 
             if (demoTimeMode) {
+                //noinspection UnusedAssignment
                 batteryPercentage = 69f;
             } else {
                 IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                 Intent batteryStatus = MyWatchFace.this.registerReceiver(null, intentFilter);
-                try {
+                if (batteryStatus != null) {
                     int batteryLevel = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
                     int batteryScale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
                     batteryPercentage = batteryLevel * 100f / batteryScale;
-                } catch (NullPointerException e) {
+                } else {
                     batteryPercentage = -1f;
                 }
             }
@@ -758,16 +760,20 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        private void drawWatchFace(Canvas canvas, Rect bounds) {
+        private void drawWatchFace(Canvas canvas) {
             int h;
             int m;
             int s;
             int ms;
 
             if (demoTimeMode) {
+                //noinspection UnusedAssignment
                 h = 10;
+                //noinspection UnusedAssignment
                 m = 10;
+                //noinspection UnusedAssignment
                 s = 32;
+                //noinspection UnusedAssignment
                 ms = 500;
             } else {
                 h  = mCalendar.get(Calendar.HOUR);
@@ -777,8 +783,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
 
             final float seconds = (float)s + (float) ms / 1000f; /* 0 to 60 */
-            final float minutes = (float)m + (float) seconds / 60f; /* 0 to 60 */
-            final float hours   = (float)h + (float) minutes / 60f; /* 0 to 12 */
+            final float minutes = (float)m + seconds / 60f; /* 0 to 60 */
+            final float hours   = (float)h + minutes / 60f; /* 0 to 12 */
 
             final float secondsRotation = seconds * 6f;
             final float minutesRotation = minutes * 6f;
