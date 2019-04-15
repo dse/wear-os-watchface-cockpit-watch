@@ -5,11 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
@@ -19,13 +16,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.graphics.Palette;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
-import android.util.Log;
 import android.view.SurfaceHolder;
-import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -126,14 +120,14 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private float mBatteryCenterY;
         private float mBatteryRadius;
 
-        private float sSecondHandLength;
-        private float sSecondHandWidth;
-        private float sMinuteHandLength;
-        private float sMinuteHandWidth;
-        private float sHourHandLength;
-        private float sHourHandWidth;
-        private float sBatteryHandLength;
-        private float sBatteryHandWidth;
+        private float mSecondHandLength;
+        private float mSecondHandWidth;
+        private float mMinuteHandLength;
+        private float mMinuteHandWidth;
+        private float mHourHandLength;
+        private float mHourHandWidth;
+        private float mBatteryHandLength;
+        private float mBatteryHandWidth;
         
         private Paint mHourHandFillPaint;
         private Paint mMinuteHandFillPaint;
@@ -440,69 +434,69 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mBatteryCenterY    = height * 0.44f;
             mBatteryRadius     = height * 0.16f;
 
-            sHourHandLength    = (float) (mRadius * HOUR_HAND_LENGTH);
-            sMinuteHandLength  = (float) (mRadius * MINUTE_HAND_LENGTH);
-            sSecondHandLength  = (float) (mRadius * SECOND_HAND_LENGTH);
-            sBatteryHandLength = (float) (mBatteryRadius * BATTERY_HAND_LENGTH);
+            mHourHandLength = (float) (mRadius * HOUR_HAND_LENGTH);
+            mMinuteHandLength = (float) (mRadius * MINUTE_HAND_LENGTH);
+            mSecondHandLength = (float) (mRadius * SECOND_HAND_LENGTH);
+            mBatteryHandLength = (float) (mBatteryRadius * BATTERY_HAND_LENGTH);
 
-            sHourHandWidth    = (float) (mDiameter * HOUR_HAND_WIDTH);
-            sMinuteHandWidth  = (float) (mDiameter * MINUTE_HAND_WIDTH);
-            sSecondHandWidth  = (float) (mDiameter * SECOND_HAND_WIDTH);
-            sBatteryHandWidth = (float) (mDiameter * BATTERY_HAND_WIDTH);
+            mHourHandWidth = (float) (mDiameter * HOUR_HAND_WIDTH);
+            mMinuteHandWidth = (float) (mDiameter * MINUTE_HAND_WIDTH);
+            mSecondHandWidth = (float) (mDiameter * SECOND_HAND_WIDTH);
+            mBatteryHandWidth = (float) (mDiameter * BATTERY_HAND_WIDTH);
 
             mCanvasBitmap = null;
             mBackgroundBitmap = null;
             mGrayBackgroundBitmap = null;
 
             mHourHandPath = new Path();
-            mHourHandPath.moveTo(mCenterX - sHourHandWidth / 3, mCenterY);
-            mHourHandPath.lineTo(mCenterX - sHourHandWidth / 2, mCenterY - sHourHandLength * 0.75f);
-            mHourHandPath.lineTo(mCenterX, mCenterY - sHourHandLength);
-            mHourHandPath.lineTo(mCenterX + sHourHandWidth / 2, mCenterY - sHourHandLength * 0.75f);
-            mHourHandPath.lineTo(mCenterX + sHourHandWidth / 3, mCenterY);
-            mHourHandPath.lineTo(mCenterX - sHourHandWidth / 3, mCenterY);
+            mHourHandPath.moveTo(mCenterX - mHourHandWidth / 3, mCenterY);
+            mHourHandPath.lineTo(mCenterX - mHourHandWidth / 2, mCenterY - mHourHandLength * 0.75f);
+            mHourHandPath.lineTo(mCenterX, mCenterY - mHourHandLength);
+            mHourHandPath.lineTo(mCenterX + mHourHandWidth / 2, mCenterY - mHourHandLength * 0.75f);
+            mHourHandPath.lineTo(mCenterX + mHourHandWidth / 3, mCenterY);
+            mHourHandPath.lineTo(mCenterX - mHourHandWidth / 3, mCenterY);
             
             Path hourCirclePath = new Path();
-            hourCirclePath.addCircle(mCenterX, mCenterY, sHourHandWidth / 1.5f, Path.Direction.CW);
+            hourCirclePath.addCircle(mCenterX, mCenterY, mHourHandWidth / 1.5f, Path.Direction.CW);
             
             mHourHandPath.op(hourCirclePath, Path.Op.UNION);
             
             mMinuteHandPath = new Path();
-            mMinuteHandPath.moveTo(mCenterX - sMinuteHandWidth / 3, mCenterY);
-            mMinuteHandPath.lineTo(mCenterX - sMinuteHandWidth / 2, mCenterY - sMinuteHandLength * 0.75f);
-            mMinuteHandPath.lineTo(mCenterX, mCenterY - sMinuteHandLength);
-            mMinuteHandPath.lineTo(mCenterX + sMinuteHandWidth / 2, mCenterY - sMinuteHandLength * 0.75f);
-            mMinuteHandPath.lineTo(mCenterX + sMinuteHandWidth / 3, mCenterY);
-            mMinuteHandPath.lineTo(mCenterX - sMinuteHandWidth / 3, mCenterY);
+            mMinuteHandPath.moveTo(mCenterX - mMinuteHandWidth / 3, mCenterY);
+            mMinuteHandPath.lineTo(mCenterX - mMinuteHandWidth / 2, mCenterY - mMinuteHandLength * 0.75f);
+            mMinuteHandPath.lineTo(mCenterX, mCenterY - mMinuteHandLength);
+            mMinuteHandPath.lineTo(mCenterX + mMinuteHandWidth / 2, mCenterY - mMinuteHandLength * 0.75f);
+            mMinuteHandPath.lineTo(mCenterX + mMinuteHandWidth / 3, mCenterY);
+            mMinuteHandPath.lineTo(mCenterX - mMinuteHandWidth / 3, mCenterY);
 
             Path minuteCirclePath = new Path();
-            minuteCirclePath.addCircle(mCenterX, mCenterY, sMinuteHandWidth / 1.5f, Path.Direction.CW);
+            minuteCirclePath.addCircle(mCenterX, mCenterY, mMinuteHandWidth / 1.5f, Path.Direction.CW);
 
             mMinuteHandPath.op(minuteCirclePath, Path.Op.UNION);
 
             mSecondHandPath = new Path();
-            mSecondHandPath.moveTo(mCenterX - sSecondHandWidth / 3, mCenterY);
-            mSecondHandPath.lineTo(mCenterX - sSecondHandWidth / 2, mCenterY - sSecondHandLength * 0.75f);
-            mSecondHandPath.lineTo(mCenterX, mCenterY - sSecondHandLength);
-            mSecondHandPath.lineTo(mCenterX + sSecondHandWidth / 2, mCenterY - sSecondHandLength * 0.75f);
-            mSecondHandPath.lineTo(mCenterX + sSecondHandWidth / 3, mCenterY);
-            mSecondHandPath.lineTo(mCenterX - sSecondHandWidth / 3, mCenterY);
+            mSecondHandPath.moveTo(mCenterX - mSecondHandWidth / 3, mCenterY);
+            mSecondHandPath.lineTo(mCenterX - mSecondHandWidth / 2, mCenterY - mSecondHandLength * 0.75f);
+            mSecondHandPath.lineTo(mCenterX, mCenterY - mSecondHandLength);
+            mSecondHandPath.lineTo(mCenterX + mSecondHandWidth / 2, mCenterY - mSecondHandLength * 0.75f);
+            mSecondHandPath.lineTo(mCenterX + mSecondHandWidth / 3, mCenterY);
+            mSecondHandPath.lineTo(mCenterX - mSecondHandWidth / 3, mCenterY);
 
             Path secondCirclePath = new Path();
-            secondCirclePath.addCircle(mCenterX, mCenterY, sSecondHandWidth / 1.5f, Path.Direction.CW);
+            secondCirclePath.addCircle(mCenterX, mCenterY, mSecondHandWidth / 1.5f, Path.Direction.CW);
 
             mSecondHandPath.op(secondCirclePath, Path.Op.UNION);
 
             mBatteryHandPath = new Path();
-            mBatteryHandPath.moveTo(mBatteryCenterX - sBatteryHandWidth / 3, mBatteryCenterY);
-            mBatteryHandPath.lineTo(mBatteryCenterX - sBatteryHandWidth / 2, mBatteryCenterY - sBatteryHandLength * 0.75f);
-            mBatteryHandPath.lineTo(mBatteryCenterX, mBatteryCenterY - sBatteryHandLength);
-            mBatteryHandPath.lineTo(mBatteryCenterX + sBatteryHandWidth / 2, mBatteryCenterY - sBatteryHandLength * 0.75f);
-            mBatteryHandPath.lineTo(mBatteryCenterX + sBatteryHandWidth / 3, mBatteryCenterY);
-            mBatteryHandPath.lineTo(mBatteryCenterX - sBatteryHandWidth / 3, mBatteryCenterY);
+            mBatteryHandPath.moveTo(mBatteryCenterX - mBatteryHandWidth / 3, mBatteryCenterY);
+            mBatteryHandPath.lineTo(mBatteryCenterX - mBatteryHandWidth / 2, mBatteryCenterY - mBatteryHandLength * 0.75f);
+            mBatteryHandPath.lineTo(mBatteryCenterX, mBatteryCenterY - mBatteryHandLength);
+            mBatteryHandPath.lineTo(mBatteryCenterX + mBatteryHandWidth / 2, mBatteryCenterY - mBatteryHandLength * 0.75f);
+            mBatteryHandPath.lineTo(mBatteryCenterX + mBatteryHandWidth / 3, mBatteryCenterY);
+            mBatteryHandPath.lineTo(mBatteryCenterX - mBatteryHandWidth / 3, mBatteryCenterY);
 
             Path batteryCirclePath = new Path();
-            batteryCirclePath.addCircle(mBatteryCenterX, mBatteryCenterY, sBatteryHandWidth / 1.5f, Path.Direction.CW);
+            batteryCirclePath.addCircle(mBatteryCenterX, mBatteryCenterY, mBatteryHandWidth / 1.5f, Path.Direction.CW);
 
             mBatteryHandPath.op(batteryCirclePath, Path.Op.UNION);
         }
