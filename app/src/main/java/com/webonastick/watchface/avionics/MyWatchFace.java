@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 public class MyWatchFace extends CanvasWatchFaceService {
 
-    private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 10;
+    private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
 
     private static final int MSG_UPDATE_TIME = 0;
 
