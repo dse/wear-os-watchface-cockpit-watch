@@ -156,8 +156,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         private Typeface mTypeface;
 
-        private Bitmap mCanvasBitmap = null;
-
         private int mBackgroundColor;
         private int mShadowColor;
         private int mTextColor;
@@ -444,10 +442,15 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mSecondHandWidth = (float) (mDiameter * SECOND_HAND_WIDTH);
             mBatteryHandWidth = (float) (mDiameter * BATTERY_HAND_WIDTH);
 
-            mCanvasBitmap = null;
             mBackgroundBitmap = null;
             mGrayBackgroundBitmap = null;
 
+            initHandPaths();
+            initBackgroundBitmap(width, height);
+            initGrayBackgroundBitmap(width, height);
+        }
+
+        private void initHandPaths() {
             mHourHandPath = new Path();
             mHourHandPath.moveTo(mCenterX - mHourHandWidth / 3, mCenterY);
             mHourHandPath.lineTo(mCenterX - mHourHandWidth / 2, mCenterY - mHourHandLength * 0.75f);
@@ -455,12 +458,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mHourHandPath.lineTo(mCenterX + mHourHandWidth / 2, mCenterY - mHourHandLength * 0.75f);
             mHourHandPath.lineTo(mCenterX + mHourHandWidth / 3, mCenterY);
             mHourHandPath.lineTo(mCenterX - mHourHandWidth / 3, mCenterY);
-            
+
             Path hourCirclePath = new Path();
             hourCirclePath.addCircle(mCenterX, mCenterY, mHourHandWidth / 1.5f, Path.Direction.CW);
-            
+
             mHourHandPath.op(hourCirclePath, Path.Op.UNION);
-            
+
             mMinuteHandPath = new Path();
             mMinuteHandPath.moveTo(mCenterX - mMinuteHandWidth / 3, mCenterY);
             mMinuteHandPath.lineTo(mCenterX - mMinuteHandWidth / 2, mCenterY - mMinuteHandLength * 0.75f);
@@ -617,14 +620,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                     textPaint);
         }
 
-        private void initBackgroundBitmap(Canvas canvas) {
-            if (mBackgroundBitmap != null) {
-                return;
-            }
-
-            int width = canvas.getWidth();
-            int height = canvas.getHeight();
-
+        private void initBackgroundBitmap(int width, int height) {
             Canvas backgroundCanvas = new Canvas();
             mBackgroundBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             backgroundCanvas.setBitmap(mBackgroundBitmap);
@@ -634,9 +630,16 @@ public class MyWatchFace extends CanvasWatchFaceService {
             drawTicks(backgroundCanvas, false);
             drawHourNumbers(backgroundCanvas, true);
             drawHourNumbers(backgroundCanvas, false);
+        }
 
-            mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            canvas.setBitmap(mCanvasBitmap);
+        private void initGrayBackgroundBitmap(int width, int height) {
+            Canvas backgroundCanvas = new Canvas();
+            mGrayBackgroundBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            backgroundCanvas.setBitmap(mGrayBackgroundBitmap);
+            backgroundCanvas.drawColor(Color.BLACK);
+
+            drawTicks(backgroundCanvas, false);
+            drawHourNumbers(backgroundCanvas, false);
         }
 
         private void drawHourNumbers(Canvas canvas, boolean shadow) {
@@ -690,29 +693,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        private void initGrayBackgroundBitmap(Canvas canvas) {
-            if (mGrayBackgroundBitmap != null) {
-                return;
-            }
-
-            int width = canvas.getWidth();
-            int height = canvas.getHeight();
-
-            Canvas backgroundCanvas = new Canvas();
-            mGrayBackgroundBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            backgroundCanvas.setBitmap(mGrayBackgroundBitmap);
-            backgroundCanvas.drawColor(Color.BLACK);
-
-            drawTicks(backgroundCanvas, false);
-            drawHourNumbers(backgroundCanvas, false);
-
-            mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            backgroundCanvas.setBitmap(mCanvasBitmap);
-
-            mCanvasBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            canvas.setBitmap(mCanvasBitmap);
-        }
-
         @Override
         public void onTapCommand(int tapType, int x, int y, long eventTime) {
 //            switch (tapType) {
@@ -744,13 +724,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         private void drawBackground(Canvas canvas, Rect bounds) {
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
-                initGrayBackgroundBitmap(canvas);
                 canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
             } else if (mAmbient) {
-                initGrayBackgroundBitmap(canvas);
                 canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
             } else {
-                initBackgroundBitmap(canvas);
                 canvas.drawBitmap(mBackgroundBitmap, 0, 0, null);
             }
         }
