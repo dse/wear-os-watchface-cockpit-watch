@@ -26,7 +26,6 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("ALL")
 public class MyWatchFace extends CanvasWatchFaceService {
 
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
@@ -58,7 +57,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
     }
 
-    @SuppressWarnings("unused")
     private class Engine extends CanvasWatchFaceService.Engine {
         private static final String TAG = "MyWatchFace";
 
@@ -110,7 +108,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         };
         private boolean mRegisteredTimeZoneReceiver = false;
         private boolean mMuteMode;
-        
+
         private float mWidth;
         private float mHeight;
         private float mRadius;
