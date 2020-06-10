@@ -9,14 +9,14 @@
 
     <color name="text_color">#ffffff</color>
 
-    <color name="hour_hand_fill_color">#000000</color>
-    <color name="minute_hand_fill_color">#000000</color>
-    <color name="second_hand_fill_color">#ffcc99</color>
-    <color name="battery_hand_fill_color">#000000</color>
+    <color name="hour_hand_color_1">#222222</color>
+    <color name="minute_hand_color_1">#222222</color>
+    <color name="second_hand_color_1">#222222</color>
+    <color name="battery_hand_color_1">#222222</color>
 
-    <color name="hour_hand_stroke_color">#ffffff</color>
-    <color name="minute_hand_stroke_color">#ffffff</color>
-    <color name="second_hand_stroke_color">#ffffff</color>
-    <color name="battery_hand_stroke_color">#ffffff</color>
+    <color name="hour_hand_color_2">#eeeeee</color>
+    <color name="minute_hand_color_2">#eeeeee</color>
+    <color name="second_hand_color_2">#ffeedd</color>
+    <color name="battery_hand_color_2">#eeeeee</color>
 
 </resources>

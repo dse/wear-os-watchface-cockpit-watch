@@ -23,7 +23,7 @@
             android:value="true" />
 
         <service
-            android:name=".MyWatchFace"
+            android:name=".AvionicsWatchFace"
             android:label="Avionics"
             android:permission="android.permission.BIND_WALLPAPER">
             <meta-data
