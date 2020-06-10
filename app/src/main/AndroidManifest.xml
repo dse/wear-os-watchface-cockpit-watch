@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.webonastick.watchface.avionics">
+    package="com.webonastick.watchface.cockpit">
 
     <!-- Required to act as a custom watch face. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -23,7 +23,7 @@
             android:value="true" />
 
         <service
-            android:name=".AvionicsWatchFace"
+            android:name="com.webonastick.watchface.cockpit.CockpitWatchFace"
             android:label="Avionics"
             android:permission="android.permission.BIND_WALLPAPER">
             <meta-data

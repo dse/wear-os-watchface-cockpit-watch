@@ -1,6 +1,6 @@
 <resources>
 
-    <color name="background_color">#333333</color>
+    <color name="background_color">#222222</color>
     <color name="shadow_color">#000000</color>
 
     <color name="hour_tick_color">#ffffff</color>

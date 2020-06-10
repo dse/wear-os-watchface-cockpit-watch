@@ -1,4 +1,4 @@
-package com.webonastick.watchface.avionics;
+package com.webonastick.watchface.cockpit;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -28,7 +28,7 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-public class AvionicsWatchFace extends CanvasWatchFaceService {
+public class CockpitWatchFace extends CanvasWatchFaceService {
 
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
 
@@ -40,15 +40,15 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
     }
 
     private static class EngineHandler extends Handler {
-        private final WeakReference<AvionicsWatchFace.Engine> mWeakReference;
+        private final WeakReference<CockpitWatchFace.Engine> mWeakReference;
 
-        EngineHandler(AvionicsWatchFace.Engine reference) {
+        EngineHandler(CockpitWatchFace.Engine reference) {
             mWeakReference = new WeakReference<>(reference);
         }
 
         @Override
         public void handleMessage(Message msg) {
-            AvionicsWatchFace.Engine engine = mWeakReference.get();
+            CockpitWatchFace.Engine engine = mWeakReference.get();
             if (engine != null) {
                 switch (msg.what) {
                     case MSG_UPDATE_TIME:
@@ -60,7 +60,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
     }
 
     private class Engine extends CanvasWatchFaceService.Engine {
-        private static final String TAG = "AvionicsWatchFace";
+        private static final String TAG = "CockpitWatchFace";
 
         private static final float TICK_OUTER_RADIUS        = 0.97f;
         private static final float HOUR_TICK_INNER_RADIUS   = 0.89f;
@@ -196,7 +196,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
 
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(AvionicsWatchFace.this)
+            setWatchFaceStyle(new WatchFaceStyle.Builder(CockpitWatchFace.this)
                     .setAcceptsTapEvents(true)
                     .setStatusBarGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL)
                     .build());
@@ -204,7 +204,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
             mCalendar = Calendar.getInstance();
 
             mTypeface = Typeface.createFromAsset(
-                    AvionicsWatchFace.this.getResources().getAssets(),
+                    CockpitWatchFace.this.getResources().getAssets(),
                     "fonts/routed-gothic.ttf"
             );
 
@@ -632,8 +632,9 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
                 mBatteryTickPaint.setColor(mBatteryTickColor);
             }
 
+            float offsetY = (shadow ? (dy * 1f) : 0f);
             float centerX = mBatteryCenterX;
-            float centerY = mBatteryCenterY + (shadow ? (dy * 1f) : 0f);
+            float centerY = mBatteryCenterY + offsetY;
 
             Paint textPaint = new Paint();
             textPaint.setAntiAlias(true);
@@ -650,9 +651,12 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
             }
             textPaint.setTextSize(mDiameter * BATTERY_TEXT_SIZE_PERCENT / 100);
 
+            float startAngle = -90f;
+            float endAngle = 90f;
+
             canvas.save();
-            canvas.rotate(-90f, centerX, centerY);
-            float rotation = -90f;
+            canvas.rotate(startAngle, centerX, centerY);
+            float rotation = startAngle;
             for (int tick = 0; tick <= 100; tick += 10) {
                 if (tick == 0 || tick == 50 || tick == 100) {
                     float tickCenterY = centerY - mBatteryRadius * ((1f + HOUR_TICK_INNER_RADIUS) / 2);
@@ -678,15 +682,15 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
                             mBatteryTickPaint
                     );
                 }
-                canvas.rotate(180f / 10, centerX, centerY);
-                rotation += 180f / 10;
+                canvas.rotate((endAngle - startAngle) / 10, centerX, centerY);
+                rotation += (endAngle - startAngle) / 10;
             }
             canvas.restore();
 
             canvas.drawText(
                     "BATTERY",
                     mBatteryCenterX,
-                    mBatteryCenterY - mBatteryRadius / 3 + 0.5f * mDiameter * BATTERY_TEXT_SIZE_PERCENT / 100,
+                    mBatteryCenterY - mBatteryRadius / 3 + 0.5f * mDiameter * BATTERY_TEXT_SIZE_PERCENT / 100 + offsetY,
                     textPaint);
         }
 
@@ -809,7 +813,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
                 batteryPercentage = 69f;
             } else {
                 IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                Intent batteryStatus = AvionicsWatchFace.this.registerReceiver(null, intentFilter);
+                Intent batteryStatus = CockpitWatchFace.this.registerReceiver(null, intentFilter);
                 if (batteryStatus != null) {
                     int batteryLevel = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
                     int batteryScale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
@@ -905,7 +909,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
             }
             mRegisteredTimeZoneReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            AvionicsWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
+            CockpitWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
         }
 
         private void unregisterReceiver() {
@@ -913,7 +917,7 @@ public class AvionicsWatchFace extends CanvasWatchFaceService {
                 return;
             }
             mRegisteredTimeZoneReceiver = false;
-            AvionicsWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+            CockpitWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
         }
 
         private void updateTimer() {
