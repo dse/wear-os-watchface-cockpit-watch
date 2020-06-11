@@ -6,8 +6,12 @@ android {
         applicationId "com.webonastick.watchface.avionics"
         minSdkVersion 23
         targetSdkVersion 28
-        versionCode 1
-        versionName "1.0"
+
+        // increase for each release; sync with mobile build.gradle
+        // last digit 1 for mobile, 0 for wear
+        versionCode 10
+        versionName "1.0.0"
+
         multiDexEnabled true
     }
     buildTypes {
