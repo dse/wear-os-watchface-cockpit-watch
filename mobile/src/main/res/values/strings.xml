@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Cockpit Watch 30000</string>
+    <string name="cockpit_watch_title">Cockpit Watch 3000</string>
+    <string name="cockpit_watch_text">This phone app exists solely to install the Cockpit Watch 3000 watch face on older Android Wear watches.  If your watch runs Android Wear 2.x or Wear OS, you should not need this phone app at all.</string>
+</resources>
