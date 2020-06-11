@@ -1,4 +1,4 @@
-package com.webonastick.watchface.cockpit;
+package com.webonastick.watchface.cockpitwatch;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
