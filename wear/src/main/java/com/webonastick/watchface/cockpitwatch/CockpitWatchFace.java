@@ -1,5 +1,7 @@
 package com.webonastick.watchface.cockpitwatch;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -30,6 +32,8 @@ import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import static android.app.AlarmManager.RTC_WAKEUP;
 
 public class CockpitWatchFace extends CanvasWatchFaceService {
 
@@ -201,6 +205,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onCreate(SurfaceHolder holder) {
+            Log.d(TAG, "onCreate");
             super.onCreate(holder);
 
             if (Build.MODEL.startsWith("sdk_") || Build.FINGERPRINT.contains("/sdk_")) {
@@ -353,7 +358,10 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
             changePaintColorsAndShadows();
 
-            if (!mAmbient) {
+            if (mAmbient) {
+                startAmbientUpdates();
+            } else {
+                stopAmbientUpdates();
                 /* Check and trigger whether or not timer should be running (only in active mode). */
                 updateTimer();
                 clearIdle();
@@ -986,6 +994,10 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
         }
 
+        /**********************************************************************/
+        /**********************************************************************/
+        /**********************************************************************/
+
         /**
          * For keeping the watch face on longer than the standard
          * period of time.
@@ -996,6 +1008,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private boolean mFullWakeLockDenied = false;
 
         private void setCustomTimeout(int seconds) {
+            Log.d(TAG, "setCustomTimeout" + seconds);
             if (seconds > 0) {
                 mCustomTimeoutSeconds = seconds;
                 acquireWakeLock();
@@ -1066,6 +1079,102 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
             if (mWakeLock != null) {
                 mWakeLock.release();
+            }
+        }
+
+        /**********************************************************************/
+        /**********************************************************************/
+        /**********************************************************************/
+
+        /**
+         * Ambient refresh rate.  If 0, system handles ambient refreshes.
+         */
+        private int mAmbientUpdateRateSeconds = 10;
+
+        private static final String AMBIENT_UPDATE_ACTION = "com.webonastick.watchface.pilotwatch.action.AMBIENT_UPDATE";
+        private Intent mAmbientUpdateIntent = null;
+        private PendingIntent mAmbientUpdatePendingIntent = null;
+        private BroadcastReceiver mAmbientUpdateBroadcastReceiver = null;
+        private AlarmManager mAmbientUpdateAlarmManager = null;
+        private IntentFilter mAmbientUpdateIntentFilter = null;
+        private boolean mAmbientUpdateReceiverRegistered = false;
+
+        private Handler mAmbientUpdateHandler = null;
+        private Runnable mAmbientUpdateRunnable = null;
+
+        /**
+         * Handle time updates in ambient mode.
+         */
+        private void handleAmbientUpdate() {
+            if (!mAmbient || mAmbientUpdateRateSeconds == 0) {
+                return;
+            }
+            if (mAmbientUpdateRateSeconds <= 5) {
+                if (mAmbientUpdateHandler == null) {
+                    mAmbientUpdateHandler = new Handler();
+                    mAmbientUpdateRunnable = new Runnable() {
+                        @Override
+                        public void run() {
+                            invalidate();
+                            handleAmbientUpdate();
+                        }
+                    };
+                }
+                long timeMs = System.currentTimeMillis();
+                long delayMs = (mAmbientUpdateRateSeconds * 1000) - timeMs % (mAmbientUpdateRateSeconds * 1000);
+                long triggerTimeMs = timeMs + delayMs;
+                mAmbientUpdateHandler.postDelayed(mAmbientUpdateRunnable, delayMs);
+                return;
+            }
+
+            if (mAmbientUpdateAlarmManager == null) {
+                mAmbientUpdateAlarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                mAmbientUpdateIntent = new Intent(AMBIENT_UPDATE_ACTION);
+                mAmbientUpdatePendingIntent = PendingIntent.getBroadcast(
+                        getBaseContext(), 0, mAmbientUpdateIntent, PendingIntent.FLAG_UPDATE_CURRENT
+                );
+                mAmbientUpdateBroadcastReceiver = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        invalidate();
+                        handleAmbientUpdate();
+                    }
+                };
+                mAmbientUpdateIntentFilter = new IntentFilter(AMBIENT_UPDATE_ACTION);
+            }
+            if (!mAmbientUpdateReceiverRegistered) {
+                CockpitWatchFace.this.registerReceiver(mAmbientUpdateBroadcastReceiver, mAmbientUpdateIntentFilter);
+                mAmbientUpdateReceiverRegistered = true;
+            }
+
+            long timeMs = System.currentTimeMillis();
+            long delayMs = (mAmbientUpdateRateSeconds * 1000) - timeMs % (mAmbientUpdateRateSeconds * 1000);
+            long triggerTimeMs = timeMs + delayMs;
+            mAmbientUpdateAlarmManager.setExact(RTC_WAKEUP, triggerTimeMs, mAmbientUpdatePendingIntent);
+        }
+
+        private void startAmbientUpdates() {
+            if (!mAmbient || mAmbientUpdateRateSeconds == 0) {
+                return;
+            }
+            handleAmbientUpdate();
+        }
+
+        private void stopAmbientUpdates() {
+            if (!mAmbient || mAmbientUpdateRateSeconds == 0) {
+                return;
+            }
+            if (mAmbientUpdateRateSeconds <= 5) {
+                if (mAmbientUpdateHandler != null) {
+                    mAmbientUpdateHandler.removeCallbacks(mAmbientUpdateRunnable);
+                }
+            }
+            if (mAmbientUpdateAlarmManager != null) {
+                mAmbientUpdateAlarmManager.cancel(mAmbientUpdatePendingIntent);
+            }
+            if (mAmbientUpdateReceiverRegistered) {
+                CockpitWatchFace.this.unregisterReceiver(mAmbientUpdateBroadcastReceiver);
+                mAmbientUpdateReceiverRegistered = false;
             }
         }
     }
