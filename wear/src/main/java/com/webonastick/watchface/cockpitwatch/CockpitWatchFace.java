@@ -35,6 +35,9 @@ import java.util.concurrent.TimeUnit;
 
 import static android.app.AlarmManager.RTC_WAKEUP;
 
+import com.webonastick.watchface.AmbientRefresher;
+import com.webonastick.watchface.ScreenTimeExtender;
+
 public class CockpitWatchFace extends CanvasWatchFaceService {
 
     /*
@@ -250,8 +253,8 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
             initializePaintStyles();
 
-            clearIdle();
-            setCustomTimeout(15);
+            mScreenTimeExtender = new ScreenTimeExtender(CockpitWatchFace.this);
+            mScreenTimeExtender.clearIdle();
         }
 
         private void initializePaintStyles() {
@@ -364,7 +367,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
                 stopAmbientUpdates();
                 /* Check and trigger whether or not timer should be running (only in active mode). */
                 updateTimer();
-                clearIdle();
+                mScreenTimeExtender.clearIdle();
             }
         }
         
@@ -495,7 +498,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             initGrayBackgroundBitmap(width, height);
 
             if (!mAmbient) {
-                clearIdle();
+                mScreenTimeExtender.clearIdle();
             }
         }
 
@@ -819,7 +822,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
             invalidate();
             if (!mAmbient) {
-                clearIdle();
+                mScreenTimeExtender.clearIdle();
             }
         }
 
@@ -832,7 +835,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             drawBatteryHand(canvas);
             drawWatchFace(canvas);
             if (!mAmbient) {
-                checkIdle();
+                mScreenTimeExtender.checkIdle();
             }
         }
 
@@ -998,89 +1001,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         /**********************************************************************/
         /**********************************************************************/
 
-        /**
-         * For keeping the watch face on longer than the standard
-         * period of time.
-         */
-        private int mCustomTimeoutSeconds = 0;
-        private PowerManager mPowerManager = null;
-        private PowerManager.WakeLock mWakeLock = null;
-        private boolean mFullWakeLockDenied = false;
-
-        private void setCustomTimeout(int seconds) {
-            Log.d(TAG, "setCustomTimeout" + seconds);
-            if (seconds > 0) {
-                mCustomTimeoutSeconds = seconds;
-                acquireWakeLock();
-            } else {
-                mCustomTimeoutSeconds = 0;
-                releaseWakeLock();
-            }
-        }
-
-        private void clearCustomTimeout() {
-            mCustomTimeoutSeconds = 0;
-            releaseWakeLock();
-        }
-
-        /**
-         * Call after user activity, screen change, etc.
-         */
-        private void clearIdle() {
-            if (mCustomTimeoutSeconds <= 0) {
-                return;
-            }
-            acquireWakeLock();
-        }
-
-        /**
-         * Called after every draw.
-         * Use this to clear a 'keep screen on' flag or something.
-         * DO NOT DELETE THIS METHOD.  Keep it as a placeholder.
-         */
-        private void checkIdle() {
-            if (mCustomTimeoutSeconds <= 0) {
-                return;
-            }
-            // DO NOT DELETE THIS METHOD.
-        }
-
-        private void acquireWakeLock() {
-            if (mFullWakeLockDenied) {
-                return;
-            }
-            if (mPowerManager == null) {
-                try {
-                    mPowerManager = (PowerManager) getSystemService(POWER_SERVICE);
-                } catch (Exception e) {
-                    Log.e(TAG, "error creating PowerManager object: " + e.getLocalizedMessage());
-                    mFullWakeLockDenied = true;
-                    return;
-                }
-            }
-            if (mWakeLock == null) {
-                try {
-                    mWakeLock = mPowerManager.newWakeLock(
-                            PowerManager.FULL_WAKE_LOCK,
-                            "PilotWatch::WakeLockTag"
-                    );
-                } catch (Exception e) {
-                    Log.e(TAG, "error creating full wake lock: " + e.getLocalizedMessage());
-                    mFullWakeLockDenied = true;
-                    return;
-                }
-            }
-            mWakeLock.acquire(mCustomTimeoutSeconds * 1000L);
-        }
-
-        private void releaseWakeLock() {
-            if (mFullWakeLockDenied) {
-                return;
-            }
-            if (mWakeLock != null) {
-                mWakeLock.release();
-            }
-        }
+        private ScreenTimeExtender mScreenTimeExtender;
 
         /**********************************************************************/
         /**********************************************************************/
