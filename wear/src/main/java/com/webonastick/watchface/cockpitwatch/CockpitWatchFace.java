@@ -17,9 +17,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import androidx.core.content.ContextCompat;
+
+import android.os.PowerManager;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.SurfaceHolder;
 
@@ -30,8 +33,16 @@ import java.util.concurrent.TimeUnit;
 
 public class CockpitWatchFace extends CanvasWatchFaceService {
 
+    /*
+     * Updates rate in milliseconds for interactive mode. We update
+     * once a second to advance the second hand.
+     */
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1) / 5;
 
+    /**
+     * Handler message id for updating the time periodically in
+     * interactive mode.
+     */
     private static final int MSG_UPDATE_TIME = 0;
 
     @Override
@@ -42,7 +53,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
     private static class EngineHandler extends Handler {
         private final WeakReference<CockpitWatchFace.Engine> mWeakReference;
 
-        EngineHandler(CockpitWatchFace.Engine reference) {
+        public EngineHandler(CockpitWatchFace.Engine reference) {
             mWeakReference = new WeakReference<>(reference);
         }
 
@@ -190,11 +201,11 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onCreate(SurfaceHolder holder) {
+            super.onCreate(holder);
+
             if (Build.MODEL.startsWith("sdk_") || Build.FINGERPRINT.contains("/sdk_")) {
                 emulatorMode = true;
             }
-
-            super.onCreate(holder);
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(CockpitWatchFace.this)
                     .setAcceptsTapEvents(true)
@@ -233,6 +244,9 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mGrayBackgroundPaint.setColor(Color.BLACK);
 
             initializePaintStyles();
+
+            clearIdle();
+            setCustomTimeout(15);
         }
 
         private void initializePaintStyles() {
@@ -316,6 +330,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         public void onDestroy() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
             super.onDestroy();
+            // FIXME: cancel any alarms
         }
 
         @Override
@@ -338,8 +353,11 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
             changePaintColorsAndShadows();
 
-            /* Check and trigger whether or not timer should be running (only in active mode). */
-            updateTimer();
+            if (!mAmbient) {
+                /* Check and trigger whether or not timer should be running (only in active mode). */
+                updateTimer();
+                clearIdle();
+            }
         }
         
         private void changePaintColorsAndShadowsForDefault() {
@@ -467,6 +485,10 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             initHandPaths();
             initBackgroundBitmap(width, height);
             initGrayBackgroundBitmap(width, height);
+
+            if (!mAmbient) {
+                clearIdle();
+            }
         }
 
         private void initHandPaths() {
@@ -767,6 +789,10 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
         }
 
+        /**
+         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
+         * used for implementing specific logic to handle the gesture.
+         */
         @Override
         public void onTapCommand(int tapType, int x, int y, long eventTime) {
             switch (tapType) {
@@ -783,6 +809,10 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
                     }
                     break;
             }
+            invalidate();
+            if (!mAmbient) {
+                clearIdle();
+            }
         }
 
         @Override
@@ -793,6 +823,9 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             drawBackground(canvas);
             drawBatteryHand(canvas);
             drawWatchFace(canvas);
+            if (!mAmbient) {
+                checkIdle();
+            }
         }
 
         private void drawBackground(Canvas canvas) {
@@ -894,12 +927,14 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
             if (visible) {
                 registerReceiver();
+                /* Update time zone in case it changed while we weren't visible. */
                 mCalendar.setTimeZone(TimeZone.getDefault());
                 invalidate();
             } else {
                 unregisterReceiver();
             }
 
+            /* Check and trigger whether or not timer should be running (only in active mode). */
             updateTimer();
         }
 
@@ -920,6 +955,9 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             CockpitWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
         }
 
+        /**
+         * Starts/stops the {@link #mUpdateTimeHandler} timer based on the state of the watch face.
+         */
         private void updateTimer() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
             if (shouldTimerBeRunning()) {
@@ -927,10 +965,17 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
         }
 
+        /**
+         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
+         * should only run in active mode.
+         */
         private boolean shouldTimerBeRunning() {
             return isVisible() && !mAmbient;
         }
 
+        /**
+         * Handle updating the time periodically in interactive mode.
+         */
         private void handleUpdateTimeMessage() {
             invalidate();
             if (shouldTimerBeRunning()) {
@@ -938,6 +983,89 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
                 long delayMs = INTERACTIVE_UPDATE_RATE_MS
                         - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
+            }
+        }
+
+        /**
+         * For keeping the watch face on longer than the standard
+         * period of time.
+         */
+        private int mCustomTimeoutSeconds = 0;
+        private PowerManager mPowerManager = null;
+        private PowerManager.WakeLock mWakeLock = null;
+        private boolean mFullWakeLockDenied = false;
+
+        private void setCustomTimeout(int seconds) {
+            if (seconds > 0) {
+                mCustomTimeoutSeconds = seconds;
+                acquireWakeLock();
+            } else {
+                mCustomTimeoutSeconds = 0;
+                releaseWakeLock();
+            }
+        }
+
+        private void clearCustomTimeout() {
+            mCustomTimeoutSeconds = 0;
+            releaseWakeLock();
+        }
+
+        /**
+         * Call after user activity, screen change, etc.
+         */
+        private void clearIdle() {
+            if (mCustomTimeoutSeconds <= 0) {
+                return;
+            }
+            acquireWakeLock();
+        }
+
+        /**
+         * Called after every draw.
+         * Use this to clear a 'keep screen on' flag or something.
+         * DO NOT DELETE THIS METHOD.  Keep it as a placeholder.
+         */
+        private void checkIdle() {
+            if (mCustomTimeoutSeconds <= 0) {
+                return;
+            }
+            // DO NOT DELETE THIS METHOD.
+        }
+
+        private void acquireWakeLock() {
+            if (mFullWakeLockDenied) {
+                return;
+            }
+            if (mPowerManager == null) {
+                try {
+                    mPowerManager = (PowerManager) getSystemService(POWER_SERVICE);
+                } catch (Exception e) {
+                    Log.e(TAG, "error creating PowerManager object: " + e.getLocalizedMessage());
+                    mFullWakeLockDenied = true;
+                    return;
+                }
+            }
+            if (mWakeLock == null) {
+                try {
+                    mWakeLock = mPowerManager.newWakeLock(
+                            PowerManager.FULL_WAKE_LOCK,
+                            "PilotWatch::WakeLockTag"
+                    );
+                } catch (Exception e) {
+                    Log.e(TAG, "error creating full wake lock: " + e.getLocalizedMessage());
+                    mFullWakeLockDenied = true;
+                    return;
+                }
+            }
+            mWakeLock.acquire(mCustomTimeoutSeconds * 1000L);
+        }
+
+        private void releaseWakeLock() {
+            if (mFullWakeLockDenied) {
+                return;
+            }
+            if (mWakeLock != null) {
+                mWakeLock.release();
             }
         }
     }

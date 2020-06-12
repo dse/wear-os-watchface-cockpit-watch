@@ -23,8 +23,8 @@
             android:value="true" />
 
         <service
-            android:name="com.webonastick.watchface.com.webonastick.cockpitwatch.CockpitWatchFace"
-            android:label="Avionics"
+            android:name="com.webonastick.watchface.cockpitwatch.CockpitWatchFace"
+            android:label="Cockpit Watch"
             android:permission="android.permission.BIND_WALLPAPER">
             <meta-data
                 android:name="android.service.wallpaper"
