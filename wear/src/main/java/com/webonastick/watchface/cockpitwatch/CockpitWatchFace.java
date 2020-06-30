@@ -294,6 +294,185 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             updateTimer();
         }
 
+        @Override
+        public void onPropertiesChanged(Bundle properties) {
+            super.onPropertiesChanged(properties);
+            mLowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
+            mBurnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
+        }
+
+        @Override
+        public void onTimeTick() {
+            super.onTimeTick();
+            invalidate();
+        }
+
+        @Override
+        public void onAmbientModeChanged(boolean inAmbientMode) {
+            super.onAmbientModeChanged(inAmbientMode);
+            mAmbient = inAmbientMode;
+
+            changePaintColorsAndShadows();
+
+            if (mAmbient) {
+                mAmbientRefresher.start();
+            } else {
+                mAmbientRefresher.stop();
+                /* Check and trigger whether or not timer should be running (only in active mode). */
+                updateTimer();
+                mScreenTimeExtender.clearIdle();
+            }
+        }
+
+        @Override
+        public void onInterruptionFilterChanged(int interruptionFilter) {
+            super.onInterruptionFilterChanged(interruptionFilter);
+            boolean inMuteMode = (interruptionFilter == WatchFaceService.INTERRUPTION_FILTER_NONE);
+
+            /* Dim display in mute mode. */
+            if (mMuteMode != inMuteMode) {
+                mMuteMode = inMuteMode;
+                mHourHandPaint1.setAlpha(inMuteMode ? 100 : 255);
+                mMinuteHandPaint1.setAlpha(inMuteMode ? 100 : 255);
+                mSecondHandPaint1.setAlpha(inMuteMode ? 80 : 255);
+                mBatteryHandPaint1.setAlpha(inMuteMode ? 100 : 255);
+                invalidate();
+            }
+        }
+
+        @Override
+        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            super.onSurfaceChanged(holder, format, width, height);
+
+            /*
+             * Find the coordinates of the center point on the screen, and ignore the window
+             * insets, so that, on round watches with a "chin", the watch face is centered on the
+             * entire screen, not just the usable portion.
+             */
+            mWidth    = width;
+            mHeight   = height;
+            mRadius   = Math.min(width / 2f, height / 2f);
+            mDiameter = Math.min(width, height);
+            mCenterX  = width / 2f;
+            mCenterY  = height / 2f;
+
+            mBatteryCenterX    = width / 2f;
+            mBatteryCenterY    = height * 0.72f;
+            mBatteryRadius     = height * 0.16f;
+
+            mHourHandLength    = mRadius * HOUR_HAND_LENGTH;
+            mMinuteHandLength  = mRadius * MINUTE_HAND_LENGTH;
+            mSecondHandLength  = mRadius * SECOND_HAND_LENGTH;
+            mBatteryHandLength = mBatteryRadius * BATTERY_HAND_LENGTH;
+
+            mHourHandWidth    = mDiameter * HOUR_HAND_WIDTH;
+            mMinuteHandWidth  = mDiameter * MINUTE_HAND_WIDTH;
+            mSecondHandWidth  = mDiameter * SECOND_HAND_WIDTH;
+            mBatteryHandWidth = mDiameter * BATTERY_HAND_WIDTH;
+
+            mBackgroundBitmap     = null;
+            mGrayBackgroundBitmap = null;
+
+            initHandPaths();
+            initBackgroundBitmap(width, height);
+            initGrayBackgroundBitmap(width, height);
+
+            if (!mAmbient) {
+                mScreenTimeExtender.clearIdle();
+            }
+        }
+
+        /**
+         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
+         * used for implementing specific logic to handle the gesture.
+         */
+        @Override
+        public void onTapCommand(int tapType, int x, int y, long eventTime) {
+            switch (tapType) {
+                case TAP_TYPE_TAP:
+                    if (emulatorMode) {
+                        float xx = (float)x;
+                        float yy = (float)y;
+                        if (xx < mWidth / 2 && yy < mHeight / 2) {
+                            demoTimeMode = true;
+                        } else if (xx >= mWidth / 2 && yy >= mHeight / 2) {
+                            demoTimeMode = false;
+                        }
+                        invalidate();
+                    }
+                    break;
+            }
+            invalidate();
+            if (!mAmbient) {
+                mScreenTimeExtender.clearIdle();
+            }
+        }
+
+        // MULTI-TAP WOULD GO HERE
+
+        @Override
+        public void onDraw(Canvas canvas, Rect bounds) {
+            long now = System.currentTimeMillis();
+            mCalendar.setTimeInMillis(now);
+
+            drawBackground(canvas);
+            drawBatteryHand(canvas);
+            drawWatchFace(canvas);
+            if (!mAmbient) {
+                mScreenTimeExtender.checkIdle();
+            }
+        }
+
+        private void registerReceiver() {
+            if (mRegisteredTimeZoneReceiver) {
+                return;
+            }
+            mRegisteredTimeZoneReceiver = true;
+            IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
+            CockpitWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
+        }
+
+        private void unregisterReceiver() {
+            if (!mRegisteredTimeZoneReceiver) {
+                return;
+            }
+            mRegisteredTimeZoneReceiver = false;
+            CockpitWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+        }
+
+        /**
+         * Starts/stops the {@link #mUpdateTimeHandler} timer based on the state of the watch face.
+         */
+        private void updateTimer() {
+            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
+            if (shouldTimerBeRunning()) {
+                mUpdateTimeHandler.sendEmptyMessage(MSG_UPDATE_TIME);
+            }
+        }
+
+        /**
+         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
+         * should only run in active mode.
+         */
+        private boolean shouldTimerBeRunning() {
+            return isVisible() && !mAmbient;
+        }
+
+        /**
+         * Handle updating the time periodically in interactive mode.
+         */
+        private void handleUpdateTimeMessage() {
+            invalidate();
+            if (shouldTimerBeRunning()) {
+                long timeMs = System.currentTimeMillis();
+                long delayMs = INTERACTIVE_UPDATE_RATE_MS
+                        - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
+                mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
+            }
+        }
+
+        // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
         private void initializePaintStyles() {
             mHourHandPaint1 = new Paint();
             mHourHandPaint1.setStrokeWidth(Math.max(0, HOUR_HAND_STROKE_WIDTH   - 1));
@@ -371,36 +550,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             changePaintAntiAliasForDefault();
         }
 
-        @Override
-        public void onPropertiesChanged(Bundle properties) {
-            super.onPropertiesChanged(properties);
-            mLowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
-            mBurnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
-        }
-
-        @Override
-        public void onTimeTick() {
-            super.onTimeTick();
-            invalidate();
-        }
-
-        @Override
-        public void onAmbientModeChanged(boolean inAmbientMode) {
-            super.onAmbientModeChanged(inAmbientMode);
-            mAmbient = inAmbientMode;
-
-            changePaintColorsAndShadows();
-
-            if (mAmbient) {
-                mAmbientRefresher.start();
-            } else {
-                mAmbientRefresher.stop();
-                /* Check and trigger whether or not timer should be running (only in active mode). */
-                updateTimer();
-                mScreenTimeExtender.clearIdle();
-            }
-        }
-
         private void changePaintColorsAndShadowsForDefault() {
             mHourHandPaint1.setColor(mHourHandColor1);
             mMinuteHandPaint1.setColor(mMinuteHandColor1);
@@ -471,64 +620,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
                 changePaintAntiAliasForLowBit();
             } else {
                 changePaintAntiAliasForDefault();
-            }
-        }
-
-        @Override
-        public void onInterruptionFilterChanged(int interruptionFilter) {
-            super.onInterruptionFilterChanged(interruptionFilter);
-            boolean inMuteMode = (interruptionFilter == WatchFaceService.INTERRUPTION_FILTER_NONE);
-
-            /* Dim display in mute mode. */
-            if (mMuteMode != inMuteMode) {
-                mMuteMode = inMuteMode;
-                mHourHandPaint1.setAlpha(inMuteMode ? 100 : 255);
-                mMinuteHandPaint1.setAlpha(inMuteMode ? 100 : 255);
-                mSecondHandPaint1.setAlpha(inMuteMode ? 80 : 255);
-                mBatteryHandPaint1.setAlpha(inMuteMode ? 100 : 255);
-                invalidate();
-            }
-        }
-
-        @Override
-        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            super.onSurfaceChanged(holder, format, width, height);
-
-            /*
-             * Find the coordinates of the center point on the screen, and ignore the window
-             * insets, so that, on round watches with a "chin", the watch face is centered on the
-             * entire screen, not just the usable portion.
-             */
-            mWidth    = width;
-            mHeight   = height;
-            mRadius   = Math.min(width / 2f, height / 2f);
-            mDiameter = Math.min(width, height);
-            mCenterX  = width / 2f;
-            mCenterY  = height / 2f;
-
-            mBatteryCenterX    = width / 2f;
-            mBatteryCenterY    = height * 0.72f;
-            mBatteryRadius     = height * 0.16f;
-
-            mHourHandLength    = mRadius * HOUR_HAND_LENGTH;
-            mMinuteHandLength  = mRadius * MINUTE_HAND_LENGTH;
-            mSecondHandLength  = mRadius * SECOND_HAND_LENGTH;
-            mBatteryHandLength = mBatteryRadius * BATTERY_HAND_LENGTH;
-
-            mHourHandWidth    = mDiameter * HOUR_HAND_WIDTH;
-            mMinuteHandWidth  = mDiameter * MINUTE_HAND_WIDTH;
-            mSecondHandWidth  = mDiameter * SECOND_HAND_WIDTH;
-            mBatteryHandWidth = mDiameter * BATTERY_HAND_WIDTH;
-
-            mBackgroundBitmap     = null;
-            mGrayBackgroundBitmap = null;
-
-            initHandPaths();
-            initBackgroundBitmap(width, height);
-            initGrayBackgroundBitmap(width, height);
-
-            if (!mAmbient) {
-                mScreenTimeExtender.clearIdle();
             }
         }
 
@@ -830,45 +921,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        /**
-         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
-         * used for implementing specific logic to handle the gesture.
-         */
-        @Override
-        public void onTapCommand(int tapType, int x, int y, long eventTime) {
-            switch (tapType) {
-                case TAP_TYPE_TAP:
-                    if (emulatorMode) {
-                        float xx = (float)x;
-                        float yy = (float)y;
-                        if (xx < mWidth / 2 && yy < mHeight / 2) {
-                            demoTimeMode = true;
-                        } else if (xx >= mWidth / 2 && yy >= mHeight / 2) {
-                            demoTimeMode = false;
-                        }
-                        invalidate();
-                    }
-                    break;
-            }
-            invalidate();
-            if (!mAmbient) {
-                mScreenTimeExtender.clearIdle();
-            }
-        }
-
-        @Override
-        public void onDraw(Canvas canvas, Rect bounds) {
-            long now = System.currentTimeMillis();
-            mCalendar.setTimeInMillis(now);
-
-            drawBackground(canvas);
-            drawBatteryHand(canvas);
-            drawWatchFace(canvas);
-            if (!mAmbient) {
-                mScreenTimeExtender.checkIdle();
-            }
-        }
-
         private void drawBackground(Canvas canvas) {
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, null);
@@ -960,54 +1012,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
 
             canvas.restore();
-        }
-
-        private void registerReceiver() {
-            if (mRegisteredTimeZoneReceiver) {
-                return;
-            }
-            mRegisteredTimeZoneReceiver = true;
-            IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            CockpitWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
-        }
-
-        private void unregisterReceiver() {
-            if (!mRegisteredTimeZoneReceiver) {
-                return;
-            }
-            mRegisteredTimeZoneReceiver = false;
-            CockpitWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
-        }
-
-        /**
-         * Starts/stops the {@link #mUpdateTimeHandler} timer based on the state of the watch face.
-         */
-        private void updateTimer() {
-            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
-            if (shouldTimerBeRunning()) {
-                mUpdateTimeHandler.sendEmptyMessage(MSG_UPDATE_TIME);
-            }
-        }
-
-        /**
-         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
-         * should only run in active mode.
-         */
-        private boolean shouldTimerBeRunning() {
-            return isVisible() && !mAmbient;
-        }
-
-        /**
-         * Handle updating the time periodically in interactive mode.
-         */
-        private void handleUpdateTimeMessage() {
-            invalidate();
-            if (shouldTimerBeRunning()) {
-                long timeMs = System.currentTimeMillis();
-                long delayMs = INTERACTIVE_UPDATE_RATE_MS
-                        - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
-                mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
-            }
         }
 
         private ScreenTimeExtender mScreenTimeExtender;
