@@ -1017,21 +1017,4 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private ScreenTimeExtender mScreenTimeExtender;
         private AmbientRefresher   mAmbientRefresher;
     }
-
-    // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-    private static String getDeviceListing() {
-        return "Build.PRODUCT: " + Build.PRODUCT + "\n" +
-                "Build.MANUFACTURER: " + Build.MANUFACTURER + "\n" +
-                "Build.BRAND: " + Build.BRAND + "\n" +
-                "Build.DEVICE: " + Build.DEVICE + "\n" +
-                "Build.MODEL: " + Build.MODEL + "\n" +
-                "Build.HARDWARE: " + Build.HARDWARE + "\n" +
-                "Build.FINGERPRINT: " + Build.FINGERPRINT + "\n" +
-                "Build.TAGS: " + android.os.Build.TAGS + "\n" +
-                "GL_RENDERER: " +android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_RENDERER) + "\n" +
-                "GL_VENDOR: " +android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_VENDOR) + "\n" +
-                "GL_VERSION: " +android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_VERSION) + "\n" +
-                "GL_EXTENSIONS: " +android.opengl.GLES20.glGetString(android.opengl.GLES20.GL_EXTENSIONS) + "\n";
-    }
 }
