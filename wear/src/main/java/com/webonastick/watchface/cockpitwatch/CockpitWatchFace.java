@@ -213,7 +213,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onCreate(SurfaceHolder holder) {
-            Log.d(TAG, "onCreate");
             super.onCreate(holder);
 
             if (Build.MODEL.startsWith("sdk_") || Build.FINGERPRINT.contains("/sdk_")) {
