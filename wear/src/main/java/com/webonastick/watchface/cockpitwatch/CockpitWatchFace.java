@@ -39,8 +39,9 @@ import com.webonastick.watchface.AmbientRefresher;
 import com.webonastick.watchface.ScreenTimeExtender;
 
 public class CockpitWatchFace extends CanvasWatchFaceService {
+    private static final String TAG = "CockpitWatchFace";
 
-    /*
+    /**
      * Updates rate in milliseconds for interactive mode. We update
      * once a second to advance the second hand.
      */
@@ -78,8 +79,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
     }
 
     private class Engine extends CanvasWatchFaceService.Engine {
-        private static final String TAG = "CockpitWatchFace";
-
         private static final float TICK_OUTER_RADIUS        = 0.97f;
         private static final float HOUR_TICK_INNER_RADIUS   = 0.89f;
         private static final float MINUTE_TICK_INNER_RADIUS = 0.92f;
