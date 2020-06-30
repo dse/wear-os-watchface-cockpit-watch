@@ -257,15 +257,41 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
 
             initializePaintStyles();
 
-            mScreenTimeExtender = new ScreenTimeExtender(CockpitWatchFace.this);
-            mScreenTimeExtender.clearIdle();
-
             mAmbientRefresher = new AmbientRefresher(CockpitWatchFace.this, new Runnable() {
                 @Override
                 public void run() {
                     invalidate();
                 }
             });
+
+            mScreenTimeExtender = new ScreenTimeExtender(CockpitWatchFace.this);
+            mScreenTimeExtender.clearIdle();
+        }
+
+        @Override
+        public void onDestroy() {
+            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
+            super.onDestroy();
+        }
+
+        @Override
+        public void onVisibilityChanged(boolean visible) {
+            super.onVisibilityChanged(visible);
+
+            if (visible) {
+                registerReceiver();
+
+                // Update time zone in case it changed while we weren't visible.
+                mCalendar.setTimeZone(TimeZone.getDefault());
+                invalidate();
+            } else {
+                unregisterReceiver();
+            }
+
+            /* Check and trigger whether or not timer should be running (only in active mode). */
+            // Whether the timer should be running depends on whether we're visible (as well as
+            // whether we're in ambient mode), so we may need to start or stop the timer.
+            updateTimer();
         }
 
         private void initializePaintStyles() {
@@ -343,13 +369,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mHourTextPaint.setTextAlign(Paint.Align.CENTER);
 
             changePaintAntiAliasForDefault();
-        }
-
-        @Override
-        public void onDestroy() {
-            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
-            super.onDestroy();
-            // FIXME: cancel any alarms
         }
 
         @Override
@@ -941,23 +960,6 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
 
             canvas.restore();
-        }
-
-        @Override
-        public void onVisibilityChanged(boolean visible) {
-            super.onVisibilityChanged(visible);
-
-            if (visible) {
-                registerReceiver();
-                /* Update time zone in case it changed while we weren't visible. */
-                mCalendar.setTimeZone(TimeZone.getDefault());
-                invalidate();
-            } else {
-                unregisterReceiver();
-            }
-
-            /* Check and trigger whether or not timer should be running (only in active mode). */
-            updateTimer();
         }
 
         private void registerReceiver() {
