@@ -1018,6 +1018,8 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private AmbientRefresher   mAmbientRefresher;
     }
 
+    // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
     private static String getDeviceListing() {
         return "Build.PRODUCT: " + Build.PRODUCT + "\n" +
                 "Build.MANUFACTURER: " + Build.MANUFACTURER + "\n" +
