@@ -79,6 +79,12 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
     }
 
     private class Engine extends CanvasWatchFaceService.Engine {
+
+        Engine() {
+            super();
+            // super(true); // when ready to mess with hardware acceleration
+        }
+
         private static final float TICK_OUTER_RADIUS        = 0.97f;
         private static final float HOUR_TICK_INNER_RADIUS   = 0.89f;
         private static final float MINUTE_TICK_INNER_RADIUS = 0.92f;
@@ -134,7 +140,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private float mDiameter;
         private float mCenterX;
         private float mCenterY;
-        
+
         private float mBatteryCenterX;
         private float mBatteryCenterY;
         private float mBatteryRadius;
@@ -147,12 +153,12 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private float mHourHandWidth;
         private float mBatteryHandLength;
         private float mBatteryHandWidth;
-        
+
         private Paint mHourHandPaint1;
         private Paint mMinuteHandPaint1;
         private Paint mSecondHandPaint1;
         private Paint mBatteryHandPaint1;
-        
+
         private Paint mHourHandPaint2;
         private Paint mMinuteHandPaint2;
         private Paint mSecondHandPaint2;
@@ -161,7 +167,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         private Paint mHourTickPaint;
         private Paint mMinuteTickPaint;
         private Paint mBatteryTickPaint;
-        
+
         private Paint mBackgroundPaint;
         private Paint mGrayBackgroundPaint;
         private Paint mHourTextPaint;
@@ -243,7 +249,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mMinuteHandColor2  = ContextCompat.getColor(getApplicationContext(), R.color.minute_hand_color_2);
             mSecondHandColor2  = ContextCompat.getColor(getApplicationContext(), R.color.second_hand_color_2);
             mBatteryHandColor2 = ContextCompat.getColor(getApplicationContext(), R.color.battery_hand_color_2);
-            
+
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(mBackgroundColor);
 
@@ -305,7 +311,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mSecondHandPaint2.setStrokeCap(Paint.Cap.ROUND);
             mSecondHandPaint2.setStrokeJoin(Paint.Join.ROUND);
             mSecondHandPaint2.setStyle(Paint.Style.FILL_AND_STROKE);
-            
+
             mBatteryHandPaint2 = new Paint();
             mBatteryHandPaint2.setStrokeWidth(BATTERY_HAND_STROKE_WIDTH);
             mBatteryHandPaint2.setStrokeCap(Paint.Cap.ROUND);
@@ -376,7 +382,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
                 mScreenTimeExtender.clearIdle();
             }
         }
-        
+
         private void changePaintColorsAndShadowsForDefault() {
             mHourHandPaint1.setColor(mHourHandColor1);
             mMinuteHandPaint1.setColor(mMinuteHandColor1);
@@ -509,13 +515,13 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
         }
 
         private void initHandPaths() {
-            
+
             /*
              * Base Paths
              */
 
             /* hour hand */
-            
+
             mHourHandPath1 = new Path();
             mHourHandPath1.moveTo(mCenterX - mHourHandWidth / 3, mCenterY);
             mHourHandPath1.lineTo(mCenterX - mHourHandWidth / 2, mCenterY - mHourHandLength * 0.75f);
@@ -545,7 +551,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mMinuteHandPath1.op(minuteCirclePath, Path.Op.UNION);
 
             /* second hand */
-            
+
             mSecondHandPath1 = new Path();
             mSecondHandPath1.moveTo(mCenterX - mSecondHandWidth / 3, mCenterY);
             mSecondHandPath1.lineTo(mCenterX - mSecondHandWidth / 2, mCenterY - mSecondHandLength * 0.75f);
@@ -582,7 +588,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             float mMinuteHandY  = mCenterY - mMinuteHandLength / 4f;
             float mSecondHandY  = mCenterY - mSecondHandLength / 4f;
             float mBatteryHandY = mBatteryCenterY - mBatteryHandLength / 3f;
-            
+
             mHourHandPath2 = new Path();
             mHourHandPath2.moveTo(0, mHourHandY);
             mHourHandPath2.lineTo(mWidth, mHourHandY);
@@ -598,7 +604,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mMinuteHandPath2.lineTo(0, 0);
             mMinuteHandPath2.close();
             mMinuteHandPath2.op(mMinuteHandPath1, Path.Op.INTERSECT);
-            
+
             mSecondHandPath2 = new Path();
             mSecondHandPath2.moveTo(0, mSecondHandY);
             mSecondHandPath2.lineTo(mWidth, mSecondHandY);
@@ -606,7 +612,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             mSecondHandPath2.lineTo(0, 0);
             mSecondHandPath2.close();
             mSecondHandPath2.op(mSecondHandPath1, Path.Op.INTERSECT);
-            
+
             mBatteryHandPath2 = new Path();
             mBatteryHandPath2.moveTo(0, mBatteryHandY);
             mBatteryHandPath2.lineTo(mWidth, mBatteryHandY);
@@ -630,7 +636,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             drawClockTicks(canvas, shadow, dy);
             drawBatteryTicks(canvas, shadow, dy);
         }
-        
+
         private void drawClockTicks(Canvas canvas, boolean shadow, int dy) {
             if (shadow) {
                 mHourTickPaint.setColor(Color.BLACK);
@@ -663,7 +669,7 @@ public class CockpitWatchFace extends CanvasWatchFaceService {
             }
             canvas.restore();
         }
-        
+
         private void drawBatteryTicks(Canvas canvas, boolean shadow, int dy) {
             if (shadow) {
                 mBatteryTickPaint.setColor(mShadowColor);
